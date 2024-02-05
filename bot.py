@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -8,32 +9,28 @@ load_dotenv()
 BOT_USERNAME = os.environ.get('BOT_USERNAME')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
+# 💩 counter for each user
+user_poop_count = {}
+
 # Commands handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Ciao, sono Caccometro. Manda 💩 quando hai fatto il tuo dovere.')
 
 # Messages handlers
-def handle_response(text: str) -> str:
-    processed: str = text.lower()
-
-    if '💩' in processed:
-        return 'Bravo!'
-    else:
-        return 'Che noia, dimmi qualcosa di più interessante!'
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
-    text: str = update.message.text
+    text: str = update.message.text.lower()
+    response: str = ''
 
-    if message_type == "group":
-        if BOT_USERNAME in text:
-            new_text: str = text.replace(BOT_USERNAME, '').strip()
-            response: str = handle_response(new_text)
-        else:
-            return
-    else:
-        response: str = handle_response(text)
+    if BOT_USERNAME in text:
+        response = 'Cosa vuoi dirmi?'
+    
+    if '💩' in text:
+        user_id = update.message.from_user.id
+        today = datetime.now().date()
+        user_poop_count.setdefault(user_id, {}).setdefault(today, 0)
+        user_poop_count[user_id][today] += 1
+        response = f'Bravo! Hai mandato 💩 {user_poop_count[user_id][today]} volte oggi.'
     
     await update.message.reply_text(response)
 
