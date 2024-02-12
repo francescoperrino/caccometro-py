@@ -2,6 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from datetime import datetime
+import pytz
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
@@ -38,12 +39,6 @@ def get_date(selected_user) -> list:
     if len(date)>= 10:
         del dates[10:]
     return dates
-
-def manual_addition(selected_user, selected_dates):
-    user_poop_count[selected_user][selected_dates] += 1
-
-def manual_subtraction(selected_user, selected_dates):
-    user_poop_count[selected_user][selected_dates] -= 1
 
 # Commands handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -94,16 +89,16 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except ValueError:
         isdate = False
 
-    if not isdate or  context.user_data['selected_date'] > datetime.today().strftime("%d-%m-%Y"):
+    if not isdate or  context.user_data['selected_date'] > datetime.now(pytz.timezone('Europe/Rome')).strftime("%d-%m-%Y"):
         await update.message.reply_text("Hai inserito una scelta non valida, comando annullato!", reply_markup = ReplyKeyboardRemove())
         return ERROR_CONVERSATION
     else:
         await update.message.reply_text(f"Hai scelto @{context.user_data['selected_user'].lower()} e il giorno {context.user_data['selected_date']}.", reply_markup = ReplyKeyboardRemove())
         
         if context.user_data['command'] == '/aggiungi':
-            manual_addition(context.user_data['selected_user'], context.user_data['selected_date'])
+            user_poop_count[context.user_data['selected_user']][context.user_data['selected_date']] += 1
         elif context.user_data['command'] == '/togli':
-            manual_subtraction((context.user_data['selected_user'], context.user_data['selected_date']))
+            user_poop_count[context.user_data['selected_user']][context.user_data['selected_date']] -= 1
         
         await update.message.reply_text(f"Il conteggio di @{context.user_data['selected_user'].lower()} nel giorno {context.user_data['selected_date']} è stato aggiornato a {user_poop_count[context.user_data['selected_user']][context.user_data['selected_date']]} 💩.", reply_markup = ReplyKeyboardRemove())
         
@@ -164,7 +159,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if '💩' in text:
         user = update.message.from_user
-        today = datetime.today().strftime("%d-%m-%Y")
+        today = datetime.now(pytz.timezone('Europe/Rome')).strftime("%d-%m-%Y")
         user_poop_count.setdefault(user.username, {}).setdefault(today, 0)
         user_poop_count[user.username][today] += 1
         response = f'Bravo {user.name}, oggi hai 💩 {user_poop_count[user.username][today]} ' + ('volte' if user_poop_count[user.username][today] > 1 else 'volta') + '!'

@@ -8,7 +8,7 @@ Per la creazione dell'ambiente di sviluppo, eseguire i seguenti step.
 
 - Creazione dell'ambiente virtuale:
   ```bash
-  python3 -m venv venv
+  $ python3 -m venv venv
   ```
 - Installazione pacchetti necessari.
   ```bash
