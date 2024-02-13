@@ -119,8 +119,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def user_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     command = update.message.text
     context.user_data['command'] = command
-    await update.message.reply_text(f'Hai scelto di {"incrementare" if context.user_data['command']  == "/aggiungi" else "ridurre"} il conteggio di 💩 a un utente.\n'
-                                    'Se vuoi annullare, digita Annulla.')
+    await update.message.reply_text(f'Hai scelto di' + ('incrementare' if context.user_data['command']  == "/aggiungi" else 'ridurre') +  'il conteggio di 💩 a un utente.\nSe vuoi annullare, digita Annulla.')
 
     users = get_users(update.message.chat_id)
     if not users:
@@ -233,7 +232,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
         count = get_count(username, today, update.message.chat_id)
         update_count(username, today, count + 1, update.message.chat_id)
-        response = f'Bravo {username}, oggi hai fatto 💩 {count + 1} ' + ('volte' if count > 1 else 'volta') + '!'
+        response = f'Bravo @{username}, oggi hai fatto 💩 {count + 1} ' + ('volte' if count > 1 else 'volta') + '!'
     
     await update.message.reply_text(response)
 
