@@ -11,7 +11,7 @@ Prima di iniziare a sperimentare con il codice, segui attentamente questi passag
    $ python3 -m venv venv
    ```
 
-2. **Attivazione dell'Ambiente Virtuale**: Attiva l'ambiente virtuale per isolare l'installazione dei pacchetti. A seconda del sistema operativo, usa uno dei seguenti comandi:
+2. **Attivazione dell'Ambiente Virtuale**: Attiva l'ambiente virtuale per garantire che le dipendenze del progetto siano installate in modo isolato. A seconda del sistema operativo, usa il comando appropriato:
 
    - Su Linux/MacOS:
 
@@ -25,7 +25,7 @@ Prima di iniziare a sperimentare con il codice, segui attentamente questi passag
      $ .\venv\Scripts\activate
      ```
 
-3. **Installazione delle Dipendenze**: Installa i pacchetti necessari eseguendo il seguente comando:
+3. **Installazione delle Dipendenze**: Ora installa i pacchetti necessari eseguendo il seguente comando:
 
    ```bash
    $ pip install -r requirements.txt
@@ -33,13 +33,22 @@ Prima di iniziare a sperimentare con il codice, segui attentamente questi passag
 
 ## Configurazione del Bot
 
-Prima di poter lanciare il bot, è necessario creare un nuovo bot Telegram e configurarlo. Segui questi passaggi:
+Prima di poter avviare il bot, è necessario crearne uno nuovo su Telegram e configurarlo correttamente. Segui questi passaggi:
 
 1. **Creazione di un Nuovo Bot Telegram**:
 
    - Avvia una chat con [@BotFather](https://t.me/botfather).
    - Utilizza il comando `/newbot` e segui le istruzioni per creare un nuovo bot.
-   - Otterrai un `BOT_USERNAME` e un `BOT_TOKEN` che dovrai utilizzare per configurare il bot.
+   - Dopo aver completato la creazione, riceverai un `BOT_USERNAME` e un `BOT_TOKEN` che serviranno per configurare il bot.
+   - Nella chat con [@BotFather](https://t.me/botfather), utilizza il comando `/setcommands` per configurare i comandi del bot. Puoi usare l'esempio seguente:
+     ```
+     start - Start bot.
+     aggiungi - +1 per l'utente selezionato al giorno selezionato
+     togli - -1 per l'utente selezionato al giorno selezionato
+     classifica - Classifica mensile di tutti gli utenti
+     mese - Conteggio mensile dell'utente
+     anno - Conteggio annuale dell'utente
+     ```
 
 2. **Configurazione delle Variabili d'Ambiente**:
 
@@ -58,3 +67,5 @@ Una volta configurato l'ambiente e il bot, puoi avviare il bot eseguendo il segu
 ```bash
 $ python3 caccometro.py
 ```
+
+Ora sei pronto per iniziare a sperimentare con il codice di Caccometro! Buon divertimento!
