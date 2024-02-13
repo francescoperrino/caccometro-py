@@ -139,14 +139,57 @@ async def error_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     return ConversationHandler.END
 
-async def monthly_table_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Funzione presto in arrivo.')
+async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict:
+    today = datetime.now(pytz.timezone('Europe/Rome')).strftime("%d-%m-%Y")
+    start_month = today.replace(today[0:2], '01', 1)
+    
+    await update.message.reply_text(f'Ecco la classifica del mese {datetime.now(pytz.timezone('Europe/Rome')).strftime('%m-%Y')}:')
+    
+    users = get_users()
+    rank = {}
+    
+    for user in users:
+        rank.setdefault(user, {}).setdefault(today, 0)
+        for user in user_poop_count:
+            for date in user_poop_count[user]:
+                if date >= start_month and date <= today:
+                    rank[user][today] += user_poop_count[user][date]
+    
+    rank = dict(rank.items(), key = lambda item: item[1])
+    for ii in range(1, len(rank)):
+        await update.message.reply_text(f'{ii}. @{[*rank][0]}: {rank[user][today]}')
+    
+    await update.message.reply_text(f'Complimenti a @{[*rank][0]} che questo mese ci stai dando alla grande.')
 
-async def montly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Funzione presto in arrivo.')
+    return rank
 
-async def yearly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Funzione presto in arrivo.')
+async def monthly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.message.from_user
+    today = datetime.now(pytz.timezone('Europe/Rome')).strftime("%d-%m-%Y")
+    start_month = today.replace(today[0:2], '01', 1)
+    monthly = 0
+    
+    for date in user_poop_count[user.username]:
+        if date >= start_month and date <= today:
+            monthly += user_poop_count[user.username][date]
+    
+    await update.message.reply_text(f'{user.name} questo mese hai 💩 {monthly} ' + ('volte' if monthly > 1 else 'volta') + '!')
+
+    return monthly
+
+async def yearly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user = update.message.from_user
+    today = datetime.now(pytz.timezone('Europe/Rome')).strftime("%d-%m-%Y")
+    start_year = today.replace(today[0:2], '01', 1).replace(today[3:5], '01', 1)
+    yearly = 0
+    
+    for date in user_poop_count[user.username]:
+        if date >= start_year and date <= today:
+            yearly += user_poop_count[user.username][date]
+    
+    await update.message.reply_text(f'{user.name} quest\'anno hai 💩 {yearly} ' + ('volte' if yearly > 1 else 'volta') + '!')
+
+    return yearly
 
 # Messages handlers
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -217,8 +260,8 @@ if __name__ == '__main__':
     )
     application.add_handler(manual_subtraction_handler)
 
-    application.add_handler(CommandHandler('classifica', monthly_table_command))
-    application.add_handler(CommandHandler('mese', montly_user_command))
+    application.add_handler(CommandHandler('classifica', monthly_rank_command))
+    application.add_handler(CommandHandler('mese', monthly_user_command))
     application.add_handler(CommandHandler('anno', yearly_user_command))
 
     # Messages
