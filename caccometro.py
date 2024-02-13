@@ -119,7 +119,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def user_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     command = update.message.text
     context.user_data['command'] = command
-    await update.message.reply_text(f'Hai scelto di' + ('incrementare' if context.user_data['command']  == "/aggiungi" else 'ridurre') +  'il conteggio di 💩 a un utente.\nSe vuoi annullare, digita Annulla.')
+    await update.message.reply_text(f'Hai scelto di ' + ('incrementare' if "/aggiungi" in context.user_data['command'] else 'ridurre') +  'il conteggio di 💩 a un utente.\n'
+                                    'Se vuoi annullare, digita Annulla.')
 
     users = get_users(update.message.chat_id)
     if not users:
@@ -142,9 +143,9 @@ async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
 
     await update.message.reply_text(f"Hai scelto @{context.user_data['selected_user']}!", reply_markup = ReplyKeyboardRemove())
 
-    if context.user_data['command'] == '/aggiungi':
+    if '/aggiungi' in context.user_data['command']:
         await update.message.reply_text('Ora inserisci il giorno (in formato yyyy-mm-dd):')
-    elif context.user_data['command'] == '/togli':
+    elif '/togli' in context.user_data['command']:
         dates = get_dates(context.user_data['selected_user'], update.message.chat_id)
         reply_keyboard = [dates[:10]] if len(dates) > 10 else [dates]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard = True)
@@ -169,10 +170,10 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(f"Hai scelto @{context.user_data['selected_user'].lower()} e il giorno {context.user_data['selected_date']}.", reply_markup = ReplyKeyboardRemove())
 
     count = get_count(context.user_data['selected_user'], context.user_data['selected_date'], update.message.chat_id)
-    if context.user_data['command'] == '/aggiungi':
+    if '/aggiungi' in context.user_data['command']:
         update_count(context.user_data['selected_user'], context.user_data['selected_date'], count + 1, update.message.chat_id)
         await update.message.reply_text(f"Il conteggio di @{context.user_data['selected_user']} nel giorno {context.user_data['selected_date']} è stato aggiornato a {count + 1} 💩.", reply_markup = ReplyKeyboardRemove())
-    elif context.user_data['command'] == '/togli':
+    elif '/togli' in context.user_data['command']:
         if count > 0:
             update_count(context.user_data['selected_user'], context.user_data['selected_date'], count - 1, update.message.chat_id)
             await update.message.reply_text(f"Il conteggio di @{context.user_data['selected_user']} nel giorno {context.user_data['selected_date']} è stato aggiornato a {count - 1} 💩.", reply_markup = ReplyKeyboardRemove())
@@ -183,7 +184,7 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.lower()
-    if text == 'annulla':
+    if 'annulla' in text:
         await update.message.reply_text('Hai annullato il comando.', reply_markup = ReplyKeyboardRemove())
 
     user_data = context.user_data
