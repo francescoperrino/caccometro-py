@@ -224,6 +224,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text: str = update.message.text.lower()
     response: str = ''
 
+    if not text or text.isspace():
+        return
+    
     if BOT_USERNAME in text:
         response = 'Cosa vuoi dirmi?'
     
