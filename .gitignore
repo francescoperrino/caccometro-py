@@ -1,3 +1,7 @@
+*.pyc
 venv/
 .env
-*.db
+db/
+db/*.db
+charts/
+charts/*.png

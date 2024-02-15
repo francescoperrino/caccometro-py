@@ -3,9 +3,10 @@ import logging
 from dotenv import load_dotenv
 from datetime import datetime
 import pytz
-import sqlite3
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
+from database import initialize_database, get_count, update_count, get_users, get_dates, get_rank, get_monthly_stats, get_yearly_stats
+from utils import storing_format, display_format, charts_folder, generate_table_and_chart
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -20,104 +21,6 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 # Define conversation states
 USER_CHOICE, DATE_CHOICE, CONFIRM_CHOICE, ERROR_CONVERSATION = range(4)
-
-# Define date formats
-storing_format = "%Y-%m-%d"  # Format used for storing dates in the database
-display_format = "%d-%m-%Y"  # Format used for displaying dates in messages
-
-# Support functions
-def initialize_database(chat_id):
-    """Initialize the SQLite database if it doesn't exist."""
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS user_count
-                 (username TEXT,
-                 date TEXT,
-                 count INTEGER DEFAULT 0,
-                 PRIMARY KEY (username, date))''')
-    conn.commit()
-    conn.close()
-
-def get_count(username, date, chat_id):
-    """Get the count of poop emojis for a given user and date."""
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT count FROM user_count WHERE username = ? AND date = ?', (username, date))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return row[0]
-    else:
-        return 0
-
-def update_count(username, date, count, chat_id):
-    """Update the count of poop emojis for a given user and date."""
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('DELETE FROM user_count WHERE username = ? AND date = ?', (username, date))
-    if count > 0:
-        c.execute('INSERT INTO user_count (username, date, count) VALUES (?, ?, ?)', (username, date, count))
-    conn.commit()
-    conn.close()
-
-def get_users(chat_id):
-    """Get a list of users who have a count of poop emojis greater than zero."""
-    users = []
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT DISTINCT username FROM user_count WHERE count > 0')
-    rows = c.fetchall()
-    conn.close()
-    for row in rows:
-        users.append(row[0])
-    return users
-
-def get_dates(username, chat_id):
-    """Get a list of dates for which the specified user has a count of poop emojis greater than zero."""
-    dates = []
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username,))
-    rows = c.fetchall()
-    dates = [datetime.strptime(row[0], '%Y-%m-%d').strftime('%d-%m-%Y') for row in rows]  # Change date format
-    conn.close()
-    return dates
-
-def get_rank(chat_id):
-    """Get the monthly rank of users based on the count of poop emojis."""
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-    start_month = today.replace(today[8:11], '01', 1)
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT username, SUM(count) AS partial_count FROM user_count WHERE date >= ? GROUP BY username ORDER BY partial_count DESC',
-              (start_month,))
-    rows = c.fetchall()
-    conn.close()
-    return rows
-
-def get_monthly_stats(username, chat_id):
-    """Get the count of poop emojis for the specified user in the current month."""
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-    start_month = today.replace(today[8:10], '01', 1)
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT date, count FROM user_count WHERE username = ? AND date >= ?', (username, start_month))
-    rows = c.fetchall()
-    conn.close()
-    monthly_count = sum(count for _, count in rows)
-    return monthly_count
-
-def get_yearly_stats(username, chat_id):
-    """Get the count of poop emojis for the specified user in the current year."""
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-    start_year = today.replace(today[5:7], '01', 1).replace(today[8:11], '01', 1)
-    conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
-    c = conn.cursor()
-    c.execute('SELECT date, count FROM user_count WHERE username = ? AND date >= ?', (username, start_year))
-    rows = c.fetchall()
-    conn.close()
-    yearly_count = sum(count for _, count in rows)
-    return yearly_count
 
 # Command handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -246,6 +149,12 @@ async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYP
     message = f'Ecco la classifica del mese {datetime.now(pytz.timezone("Europe/Rome")).strftime("%m-%Y")}:\n'
     for i, (username, total_count) in enumerate(rank, start=1):
         message += f"{i}. @{username}: {total_count}\n"
+
+    generate_table_and_chart(rank, update.message.chat_id)
+
+    with open(os.path.join(charts_folder, f'{update.message.chat_id}_monthly_chart.png'), 'rb') as chart:
+        await update.message.reply_photo(chart)
+
     await update.message.reply_text(message)
 
 async def monthly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -344,7 +253,7 @@ if __name__ == '__main__':
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
     )
     application.add_handler(manual_subtraction_handler)
-
+    
     application.add_handler(CommandHandler('classifica', monthly_rank_command))
     application.add_handler(CommandHandler('mese', monthly_user_command))
     application.add_handler(CommandHandler('anno', yearly_user_command))
