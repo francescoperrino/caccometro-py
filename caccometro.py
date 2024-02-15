@@ -55,9 +55,8 @@ def update_count(username, date, count, chat_id):
     conn = sqlite3.connect(str(chat_id) + '_bot_data.db')
     c = conn.cursor()
     c.execute('DELETE FROM user_count WHERE username = ? AND date = ?', (username, date))
-    c.execute('INSERT INTO user_count (username, date, count) VALUES (?, ?, ?)', (username, date, count))
-    if count == 0:
-        c.execute('DELETE FROM user_count WHERE username = ? AND date = ?', (username, date))
+    if count > 0:
+        c.execute('INSERT INTO user_count (username, date, count) VALUES (?, ?, ?)', (username, date, count))
     conn.commit()
     conn.close()
 
@@ -178,41 +177,43 @@ async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
 
 async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handler for confirming the choice and updating the poop count."""
-    date = update.message.text
-    context.user_data['selected_date'] = date
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-
+    date_text = update.message.text
     try:
-        isdate = bool(datetime.strptime(context.user_data['selected_date'], display_format))
+        selected_date = datetime.strptime(date_text, display_format).strftime(storing_format)
+        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
+        if selected_date > today:
+            raise ValueError("La data selezionata è nel futuro.")
     except ValueError:
-        isdate = False
-
-    if not isdate or datetime.strptime(context.user_data['selected_date'], display_format) > datetime.strptime(today, storing_format):
         await update.message.reply_text("Hai inserito una data non valida, comando annullato!",
                                         reply_markup=ReplyKeyboardRemove())
         return ERROR_CONVERSATION
 
+    selected_user = context.user_data.get('selected_user', None)
+    if selected_user is None:
+        await update.message.reply_text("Utente non valido, comando annullato!",
+                                        reply_markup=ReplyKeyboardRemove())
+        return ERROR_CONVERSATION
+
     await update.message.reply_text(
-        f"Hai scelto @{context.user_data['selected_user'].lower()} e il giorno {context.user_data['selected_date']}.",
+        f"Hai scelto @{selected_user.lower()} e il giorno {date_text}.",
         reply_markup=ReplyKeyboardRemove())
 
-    count = get_count(context.user_data['selected_user'], context.user_data['selected_date'], update.message.chat_id)
-    if '/aggiungi' in context.user_data['command']:
-        update_count(context.user_data['selected_user'], context.user_data['selected_date'], count + 1,
-                     update.message.chat_id)
+    command = context.user_data.get('command', '')
+    count = get_count(selected_user, selected_date, update.message.chat_id)
+    if '/aggiungi' in command:
+        update_count(selected_user, selected_date, count + 1, update.message.chat_id)
         await update.message.reply_text(
-            f"Il conteggio di @{context.user_data['selected_user']} nel giorno {context.user_data['selected_date']} è stato aggiornato a {count + 1} 💩.",
+            f"Il conteggio di @{selected_user} nel giorno {date_text} è stato aggiornato a {count + 1} 💩.",
             reply_markup=ReplyKeyboardRemove())
-    elif '/togli' in context.user_data['command']:
+    elif '/togli' in command:
         if count > 0:
-            update_count(context.user_data['selected_user'], context.user_data['selected_date'], count - 1,
-                         update.message.chat_id)
+            update_count(selected_user, selected_date, count - 1, update.message.chat_id)
             await update.message.reply_text(
-                f"Il conteggio di @{context.user_data['selected_user']} nel giorno {context.user_data['selected_date']} è stato aggiornato a {count - 1} 💩.",
+                f"Il conteggio di @{selected_user} nel giorno {date_text} è stato aggiornato a {count - 1} 💩.",
                 reply_markup=ReplyKeyboardRemove())
         else:
             await update.message.reply_text(
-                f"Il conteggio di @{context.user_data['selected_user']} nel giorno {context.user_data['selected_date']} non può essere aggiornato poichè era già {count} 💩.",
+                f"Il conteggio di @{selected_user} nel giorno {date_text} non può essere aggiornato poiché era già {count} 💩.",
                 reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
