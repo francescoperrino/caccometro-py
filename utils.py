@@ -30,14 +30,14 @@ def generate_table_and_chart(rank, chat_id):
     # Calculate the number of days in the current month
     _, days_in_month = calendar.monthrange(year, month)
 
-    # Create subplots for the table and the chart
-    fig, axes = plt.subplots(2, 1, figsize=(12, 12))
-
     # Generate the table
     users = [user for user, _ in rank]
     # Sort users alphabetically
     users = sorted(users)
     table_data = [[''] + [f'{day}' for day in range(1, days_in_month + 1)] + ['Total']]
+
+    # Create the figure with the desired dimensions
+    fig, axes = plt.subplots(2, 1, figsize=(15, 10))
 
     max_total = 0  # Variable to store the maximum total count for highlighting
 
@@ -89,25 +89,27 @@ def generate_table_and_chart(rank, chat_id):
         axes[1].plot(range(1, days_in_month + 1), cumulative_counts, label=user)
 
     # Set legend for the chart below the chart
-    axes[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=len(users), fontsize=8)  # Set legend below the chart
+    axes[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=len(users), fontsize=8)
 
     # Set labels on x-axis for the days of the month
     axes[1].set_xticks(range(1, days_in_month + 1))
     axes[1].set_xticklabels([f'{day}' for day in range(1, days_in_month + 1)])
 
     # Set y-axis range from 0 and ticks every 10
-    axes[1].set_ylim(bottom=0)
-    axes[1].set_yticks(range(0, max(cumulative_counts) + 10, 10))  # Adjust y-ticks to include space for the count label
+    max_y = max(cumulative_counts) + 10
+    axes[1].set_ylim(bottom=0, top=max_y)
+    axes[1].set_yticks(range(0, max_y + 1, 10))  # Adjust y-ticks to include space for the count label
 
     # Add horizontal lines every 5 count
-    for count in range(5, max(cumulative_counts) + 5, 5):
+    for count in range(5, max_y + 5, 5):
         axes[1].axhline(y=count, color='#CCCCCC', linestyle='--', linewidth=0.5)
     # Add horizontal lines every 10 count
-    for count in range(10, max(cumulative_counts) + 10, 10):
+    for count in range(10, max_y + 10, 10):
         axes[1].axhline(y=count, color='#888888', linestyle='--', linewidth=1)
     
     # Add vertical lines every day
     for day in range(1, days_in_month + 1):
         axes[1].axvline(x=day, color='#CCCCCC', linestyle='--', linewidth=0.3)
 
-    plt.savefig(os.path.join(charts_folder, f'{chat_id}_{year}_{month}.png'), bbox_inches='tight')  # Save the figure to an image file
+    # Save the figure to an image file
+    plt.savefig(os.path.join(charts_folder, f'{chat_id}_{year}_{month}.png'), bbox_inches='tight')
