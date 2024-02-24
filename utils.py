@@ -4,6 +4,7 @@ import pytz
 import calendar
 import matplotlib.pyplot as plt
 from database import get_count
+import locale
 
 # Define date formats
 storing_format = "%Y-%m-%d"  # Format used for storing dates in the database
@@ -11,6 +12,9 @@ display_format = "%d-%m-%Y"  # Format used for displaying dates in messages
 
 # Folder to store charts
 charts_folder = 'charts'
+
+# Set the locale to Italian
+locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
 
 # Check if charts folder exists, if not, create it
 if not os.path.exists(charts_folder):
@@ -20,8 +24,8 @@ def generate_table_and_chart(rank, chat_id):
     """Generates the monthly ranking table and chart."""
     # Get the current month and year
     now = datetime.now(pytz.timezone('Europe/Rome'))
-    month = now.month
-    year = now.year
+    month = int(now.strftime("%m"))
+    year = int(now.strftime("%Y"))
 
     # Calculate the number of days in the current month
     _, days_in_month = calendar.monthrange(year, month)
@@ -31,6 +35,8 @@ def generate_table_and_chart(rank, chat_id):
 
     # Generate the table
     users = [user for user, _ in rank]
+    # Sort users alphabetically
+    users = sorted(users)
     table_data = [[''] + [f'{day}' for day in range(1, days_in_month + 1)] + ['Total']]
 
     max_total = 0  # Variable to store the maximum total count for highlighting
@@ -54,13 +60,13 @@ def generate_table_and_chart(rank, chat_id):
 
     for key, cell in table.get_celld().items():
         cell.set_edgecolor('black')  # Set edge color for each cell
-        cell.set_linewidth(1.2)  # Set linewidth for each cell
+        cell.set_linewidth(1)  # Set linewidth for each cell
 
     table.auto_set_font_size(True)
     table.set_fontsize(8)
 
     # Set title for the table (month name and year)
-    axes[0].set_title(f'{calendar.month_name[month]} {year}', fontsize=14, pad=20)
+    axes[0].set_title(f'{calendar.month_name[month].capitalize()} {year}', fontsize=14)
 
     # Hide the axes for the table
     axes[0].axis('off')
@@ -83,10 +89,7 @@ def generate_table_and_chart(rank, chat_id):
         axes[1].plot(range(1, days_in_month + 1), cumulative_counts, label=user)
 
     # Set legend for the chart below the chart
-    axes[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=len(users), fontsize=10)  # Set legend below the chart
-
-    # Adjust space between subplots
-    plt.subplots_adjust(hspace=0)  # Reduce the space between the table and the chart
+    axes[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=len(users), fontsize=8)  # Set legend below the chart
 
     # Set labels on x-axis for the days of the month
     axes[1].set_xticks(range(1, days_in_month + 1))
@@ -102,5 +105,9 @@ def generate_table_and_chart(rank, chat_id):
     # Add horizontal lines every 10 count
     for count in range(10, max(cumulative_counts) + 10, 10):
         axes[1].axhline(y=count, color='#888888', linestyle='--', linewidth=1)
+    
+    # Add vertical lines every day
+    for day in range(1, days_in_month + 1):
+        axes[1].axvline(x=day, color='#CCCCCC', linestyle='--', linewidth=0.3)
 
-    plt.savefig(os.path.join(charts_folder, f'{chat_id}_monthly_chart.png'), bbox_inches='tight')  # Save the figure to an image file
+    plt.savefig(os.path.join(charts_folder, f'{chat_id}_{year}_{month}.png'), bbox_inches='tight')  # Save the figure to an image file

@@ -152,7 +152,12 @@ async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     generate_table_and_chart(rank, update.message.chat_id)
 
-    with open(os.path.join(charts_folder, f'{update.message.chat_id}_monthly_chart.png'), 'rb') as chart:
+    # Get the current month and year
+    now = datetime.now(pytz.timezone('Europe/Rome'))
+    month = int(now.strftime("%m"))
+    year = int(now.strftime("%Y"))
+
+    with open(os.path.join(charts_folder, f'{update.message.chat_id}_{year}_{month}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
     await update.message.reply_text(message)
