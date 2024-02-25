@@ -180,24 +180,24 @@ async def yearly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
     message_type: str = update.message.chat.type
-    text: str = update.message.text.lower()
-    response: str = ''
 
-    if not text or text.isspace():
-        return
+    # Check if the message contains text and is not empty
+    if update.message.text and update.message.text.strip():
+        text: str = update.message.text.lower()
+        response: str = ''
 
-    if BOT_USERNAME in text:
-        response = 'Cosa vuoi dirmi?'
+        if BOT_USERNAME in text:
+            response = 'Cosa vuoi dirmi?'
 
-    if '💩' in text:
-        username = update.message.from_user.username
-        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-        count = get_count(username, today, update.message.chat_id)
-        update_count(username, today, count + 1, update.message.chat_id)
-        response = f'Complimenti @{username}, oggi hai fatto 💩 {count + 1} ' + (
-            'volte' if count > 1 else 'volta') + '!'
+        if '💩' in text:
+            username = update.message.from_user.username
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
+            update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
+            response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
+                'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
 
-    await update.message.reply_text(response)
+        if response:
+            await update.message.reply_text(response)
 
 # Error handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
