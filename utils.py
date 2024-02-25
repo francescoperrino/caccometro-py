@@ -5,6 +5,7 @@ import calendar
 import matplotlib.pyplot as plt
 from database import get_count
 import locale
+from math import ceil
 
 # Define date formats
 storing_format = "%Y-%m-%d"  # Format used for storing dates in the database
@@ -95,21 +96,32 @@ def generate_table_and_chart(rank, chat_id):
     axes[1].set_xticks(range(1, days_in_month + 1))
     axes[1].set_xticklabels([f'{day}' for day in range(1, days_in_month + 1)])
 
-    # Set y-axis range from 0 and ticks every 10
-    max_y = max(cumulative_counts) + 10
+    # Set y-axis range from 0 to the next multiple of 10 after max_total
+    max_y = ceil((max_total + 1) / 10) * 10
     axes[1].set_ylim(bottom=0, top=max_y)
-    axes[1].set_yticks(range(0, max_y + 1, 10))  # Adjust y-ticks to include space for the count label
 
+    # Set y-axis ticks every 10
+    axes[1].set_yticks(range(0, max_y + 10, 10))
+
+    # Add horizontal lines every count
+    for count in range(0, max_y + 1, 1):
+        axes[1].axhline(y=count, color='#DDDDDD', linestyle='--', linewidth=0.3)
+    
     # Add horizontal lines every 5 count
     for count in range(5, max_y + 5, 5):
-        axes[1].axhline(y=count, color='#CCCCCC', linestyle='--', linewidth=0.5)
+        axes[1].axhline(y=count, color='#CCCCCC', linestyle='--', linewidth=0.7)
+    
     # Add horizontal lines every 10 count
     for count in range(10, max_y + 10, 10):
         axes[1].axhline(y=count, color='#888888', linestyle='--', linewidth=1)
+
     
     # Add vertical lines every day
     for day in range(1, days_in_month + 1):
-        axes[1].axvline(x=day, color='#CCCCCC', linestyle='--', linewidth=0.3)
+        axes[1].axvline(x=day, color='#DDDDDD', linestyle='--', linewidth=0.3)
 
+    # Set x-axis limits to include only the actual days of the month
+    axes[1].set_xlim(left=1, right=days_in_month)
+    
     # Save the figure to an image file
     plt.savefig(os.path.join(charts_folder, f'{chat_id}_{year}_{month}.png'), bbox_inches='tight')
