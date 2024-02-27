@@ -128,7 +128,7 @@ async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
     context.user_data['command'] = command
     await update.message.reply_text(
         f'Hai scelto di mostrare la classifica {"mensile" if "/mese" in context.user_data["command"] else "annuale"}.\n'
-        f'Inserisci il {"mese in formato mm-YYYY" if "/mese" in context.user_data["command"] else "l'anno in formato YYYY"}.\n'
+        f'Inserisci il {"mese in formato mm-YYYY" if "/mese" in context.user_data["command"] else "l\'anno in formato YYYY"}.\n'
         'Se vuoi annullare, digita Annulla.')
     
     return CONFIRM_DATE_CHOICE
@@ -166,13 +166,33 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if '/mese_x' in command:
         rank = get_rank(update.message.chat_id, 'month', date_text)
+        message = f'Ecco la classifica del mese {date_text}:\n'
+        for i, (username, total_count) in enumerate(rank, start=1):
+            message += f"{i}. @{username}: {total_count}\n"
+        
+        generate_table_and_chart(rank, update.message.chat_id, 'month', date_text)
+
+        date_parts = date_text.split('-')
+        month = int(date_parts[0])
+        year = int(date_parts[1])
+        saving_date = str(date_parts[1]) + '_' + str(date_parts[0])
+
+        with open(os.path.join(charts_folder, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
+            await update.message.reply_photo(chart)
+
+        await update.message.reply_text(message)
     if '/anno_x' in command:
         rank = get_rank(update.message.chat_id, 'year', date_text)
-    
-    message = f'Ecco la classifica del mese {datetime.now(pytz.timezone("Europe/Rome")).strftime("%m-%Y")}:\n'
-    for i, (username, total_count) in enumerate(rank, start=1):
-        message += f"{i}. @{username}: {total_count}\n"
-    await update.message.reply_text(message)
+        message = f'Ecco la classifica dell\'anno {date_text}:\n'
+        for i, (username, total_count) in enumerate(rank, start=1):
+            message += f"{i}. @{username}: {total_count}\n"
+
+        generate_table_and_chart(rank, update.message.chat_id, 'year', date_text)
+
+        with open(os.path.join(charts_folder, f'{update.message.chat_id}_{date_text}.png'), 'rb') as chart:
+            await update.message.reply_photo(chart)
+
+        await update.message.reply_text(message)
 
     return ConversationHandler.END
 
