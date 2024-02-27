@@ -2,6 +2,7 @@ import os
 import sqlite3
 from datetime import datetime
 import pytz
+import calendar
 
 # Define date formats
 storing_format = "%Y-%m-%d"  # Format used for storing dates in the database
@@ -34,12 +35,31 @@ def get_count(username, date, chat_id):
     # Connect to the database
     conn = sqlite3.connect(os.path.join(db_folder, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
-    # Execute SQL query to retrieve the count for the specified user and date
-    c.execute('SELECT count FROM user_count WHERE username = ? AND date = ?', (username, date))
+    
+    # Determine if the input date is a day or a month
+    try:
+        parsed_date = datetime.strptime(date, '%Y-%m-%d')
+        start_date = parsed_date.strftime('%Y-%m-%d')
+        end_date = parsed_date.strftime('%Y-%m-%d')
+    except ValueError:
+        try:
+            parsed_date = datetime.strptime(date, '%Y-%m')
+            year = parsed_date.year
+            month = parsed_date.month
+            _, days_in_month = calendar.monthrange(year, month)
+            start_date = parsed_date.strftime('%Y-%m-01')
+            end_date = parsed_date.strftime(f'%Y-%m-{days_in_month}')
+        except ValueError:
+            conn.close()
+            return 0
+    
+    # Execute SQL query to retrieve the count for the specified user and date or month
+    c.execute('SELECT SUM(count) FROM user_count WHERE username = ? AND date BETWEEN ? AND ?', (username, start_date, end_date))
     row = c.fetchone()
     conn.close()
+    
     # Return the count if found, otherwise return 0
-    if row:
+    if row[0] is not None:
         return row[0]
     else:
         return 0
@@ -78,25 +98,44 @@ def get_dates(username, chat_id):
     conn = sqlite3.connect(os.path.join(db_folder, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
     # Execute SQL query to retrieve dates with count > 0 for the specified user
-    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username,))
+    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username))
     rows = c.fetchall()
     conn.close()
     # Format dates and return them
     dates = [datetime.strptime(row[0], '%Y-%m-%d').strftime('%d-%m-%Y') for row in rows]
     return dates
 
-# Function to get the monthly rank of users based on the count of poop emojis
-def get_rank(chat_id):
-    """Get the monthly rank of users based on the count of poop emojis."""
-    # Get the current date in storing_format
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-    start_month = today.replace(today[8:11], '01', 1)  # Set the start of the month
+# Function to get the rank of users based on the count of poop emojis
+def get_rank(chat_id, time_period, date):
+    """Get the rank of users based on the count of poop emojis for the specified time period."""
+    if time_period == 'month':
+        # Parse the input date for monthly rank (format: month-year)
+        date_parts = date.split('-')
+        month_str = date_parts[0].zfill(2)  # Aggiungi uno zero iniziale, se necessario
+        year_str = date_parts[1]
+        start_period = datetime.strptime(f'{month_str}-{year_str}', '%m-%Y').strftime(storing_format)
+        # Get the end of the month
+        end_period = datetime.strptime(f'{month_str}-{year_str}', '%m-%Y')\
+                        .replace(day=calendar.monthrange(int(year_str), int(month_str))[1])\
+                        .strftime(storing_format)
+    elif time_period == 'year':
+        # Parse the input date for yearly rank (format: year)
+        start_period = datetime.strptime(f'01-01-{date}', '%d-%m-%Y').strftime(storing_format)
+        end_period = datetime.strptime(f'31-12-{date}', '%d-%m-%Y').strftime(storing_format)
+    else:
+        raise ValueError("Invalid time_period. It should be 'month' or 'year'.")
+
     # Connect to the database
     conn = sqlite3.connect(os.path.join(db_folder, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
-    # Execute SQL query to get the monthly rank
-    c.execute('SELECT username, SUM(count) AS partial_count FROM user_count WHERE date >= ? GROUP BY username ORDER BY partial_count DESC',
-              (start_month,))
+
+    # Execute SQL query to get the rank based on the time_period
+    c.execute('''SELECT username, SUM(count) AS partial_count
+              FROM user_count
+              WHERE date BETWEEN ? AND ?
+              GROUP BY username
+              ORDER BY partial_count DESC''', (start_period, end_period))
+    
     rows = c.fetchall()
     conn.close()
     return rows
@@ -121,9 +160,15 @@ def get_monthly_stats(username, chat_id):
 # Function to get the count of poop emojis for the specified user in the current year
 def get_yearly_stats(username, chat_id):
     """Get the count of poop emojis for the specified user in the current year."""
-    # Get the current date in storing_format
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
-    start_year = today.replace(today[5:7], '01', 1).replace(today[8:11], '01', 1)  # Set the start of the year
+    # Get today's date
+    today = datetime.now(pytz.timezone('Europe/Rome'))
+
+    # Set the first day of the current year
+    start_year = today.replace(month=1, day=1)
+
+    # Format the date in the desired format
+    start_year = start_year.strftime(storing_format)
+    
     # Connect to the database
     conn = sqlite3.connect(os.path.join(db_folder, f'{chat_id}_bot_data.db'))
     c = conn.cursor()

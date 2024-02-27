@@ -45,9 +45,10 @@ Prima di poter avviare il bot, è necessario crearne uno nuovo su Telegram e con
      start - Start bot.
      aggiungi - +1 per l'utente selezionato al giorno selezionato
      togli - -1 per l'utente selezionato al giorno selezionato
-     classifica - Classifica mensile di tutti gli utenti
-     mese - Conteggio mensile dell'utente
-     anno - Conteggio annuale dell'utente
+     classifica_mese - Classifica del mese attuale
+     classifica_anno - Classifica dell'anno attuale
+     mese_x - Conteggio del mese X (in formato mm-YYYY)
+     anno_x - Conteggio dell'anno X (in formato YYYY)
      ```
 
 2. **Configurazione delle Variabili d'Ambiente**:

@@ -7,6 +7,7 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from database import initialize_database, get_count, update_count, get_users, get_dates, get_rank, get_monthly_stats, get_yearly_stats
 from utils import storing_format, display_format, charts_folder, generate_table_and_chart
+import re
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -20,7 +21,7 @@ BOT_USERNAME = os.environ.get('BOT_USERNAME')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 # Define conversation states
-USER_CHOICE, DATE_CHOICE, CONFIRM_CHOICE, ERROR_CONVERSATION = range(4)
+USER_CHOICE, DAY_CHOICE, CONFIRM_CHOICE, DATE_CHOICE, CONFIRM_DATE_CHOICE, ERROR_CONVERSATION = range(6)
 
 # Command handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,9 +52,9 @@ async def user_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text('Chi scegli?', reply_markup=markup)
 
-        return DATE_CHOICE
+        return DAY_CHOICE
 
-async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+async def day_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Handler for selecting a date to update poop count."""
     user = update.message.text
     context.user_data['selected_user'] = user
@@ -121,6 +122,60 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     return ConversationHandler.END
 
+async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Handler for selecting the date of the rank."""
+    command = update.message.text
+    context.user_data['command'] = command
+    await update.message.reply_text(
+        f'Hai scelto di mostrare la classifica {"mensile" if "/mese" in context.user_data["command"] else "annuale"}.\n'
+        f'Inserisci il {"mese in formato mm-YYYY" if "/mese" in context.user_data["command"] else "l'anno in formato YYYY"}.\n'
+        'Se vuoi annullare, digita Annulla.')
+    
+    return CONFIRM_DATE_CHOICE
+
+async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handler for confirming the choice of the date of the rank."""
+    date_text = update.message.text
+    command = context.user_data.get('command', '')
+    selected_date = None
+
+    if '/mese_x' in command:
+        # Check if the date has the format mm-YYYY
+        if not re.match(r'\d{2}-\d{4}', date_text):
+            await update.message.reply_text("Il formato della data deve essere mm-YYYY.", reply_markup=ReplyKeyboardRemove())
+            return ERROR_CONVERSATION
+        selected_date = f'01-{date_text}'
+    elif '/anno_x' in command:
+        # Check if the date has the format YYYY
+        if not re.match(r'\d{4}', date_text):
+            await update.message.reply_text("Il formato della data deve essere YYYY.", reply_markup=ReplyKeyboardRemove())
+            return ERROR_CONVERSATION
+        # Append '01-01' to make it mm-YYYY format
+        selected_date = f'01-01-{date_text}'
+
+    try:
+        # Parse the selected date
+        selected_date_datetime = datetime.strptime(selected_date, display_format).replace(tzinfo=pytz.timezone('Europe/Rome'))
+        # Check if the selected date is in the future
+        if selected_date_datetime > datetime.now(pytz.timezone('Europe/Rome')):
+            raise ValueError("La data selezionata è nel futuro.")
+    except ValueError as e:
+        # Handle invalid date format or future date
+        await update.message.reply_text(f"{e}", reply_markup=ReplyKeyboardRemove())
+        return ERROR_CONVERSATION
+
+    if '/mese_x' in command:
+        rank = get_rank(update.message.chat_id, 'month', date_text)
+    if '/anno_x' in command:
+        rank = get_rank(update.message.chat_id, 'year', date_text)
+    
+    message = f'Ecco la classifica del mese {datetime.now(pytz.timezone("Europe/Rome")).strftime("%m-%Y")}:\n'
+    for i, (username, total_count) in enumerate(rank, start=1):
+        message += f"{i}. @{username}: {total_count}\n"
+    await update.message.reply_text(message)
+
+    return ConversationHandler.END
+
 async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handler for ending the conversation."""
     text = update.message.text.lower()
@@ -144,37 +199,41 @@ async def error_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return ConversationHandler.END
 
 async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler for the /classifica command, displays monthly ranking."""
-    rank = get_rank(update.message.chat_id)
-    message = f'Ecco la classifica del mese {datetime.now(pytz.timezone("Europe/Rome")).strftime("%m-%Y")}:\n'
+    """Handler for the /classifica_mese command, displays monthly ranking."""
+    # Get the current month and year
+    now = datetime.now(pytz.timezone('Europe/Rome'))
+    month = now.strftime("%m")
+    year = now.strftime("%Y")
+
+    rank = get_rank(update.message.chat_id, 'month', f'{month}-{year}')
+    message = f'Ecco la classifica del mese {f'{month}-{year}'}:\n'
     for i, (username, total_count) in enumerate(rank, start=1):
         message += f"{i}. @{username}: {total_count}\n"
 
-    generate_table_and_chart(rank, update.message.chat_id)
-
-    # Get the current month and year
-    now = datetime.now(pytz.timezone('Europe/Rome'))
-    month = int(now.strftime("%m"))
-    year = int(now.strftime("%Y"))
+    generate_table_and_chart(rank, update.message.chat_id, 'month', f'{month}-{year}')
 
     with open(os.path.join(charts_folder, f'{update.message.chat_id}_{year}_{month}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
     await update.message.reply_text(message)
 
-async def monthly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler for the /mese command, displays user's monthly poop count."""
-    username = update.message.from_user.username
-    monthly_count = get_monthly_stats(username, update.message.chat_id)
-    await update.message.reply_text(
-        f'@{username} questo mese hai fatto 💩 {monthly_count} ' + ('volte' if monthly_count > 1 else 'volta') + '!')
+async def yearly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for the /classifica_anno command, displays yearly ranking."""
+    # Get the current month and year
+    now = datetime.now(pytz.timezone('Europe/Rome'))
+    year = int(now.strftime("%Y"))
 
-async def yearly_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler for the /anno command, displays user's yearly poop count."""
-    username = update.message.from_user.username
-    yearly_count = get_yearly_stats(username, update.message.chat_id)
-    await update.message.reply_text(
-        f'@{username} quest\'anno hai fatto 💩 {yearly_count} ' + ('volte' if yearly_count > 1 else 'volta') + '!')
+    rank = get_rank(update.message.chat_id, 'year', year)
+    message = f'Ecco la classifica dell\'anno {year}:\n'
+    for i, (username, total_count) in enumerate(rank, start=1):
+        message += f"{i}. @{username}: {total_count}\n"
+
+    generate_table_and_chart(rank, update.message.chat_id, 'year', year)
+
+    with open(os.path.join(charts_folder, f'{update.message.chat_id}_{year}.png'), 'rb') as chart:
+        await update.message.reply_photo(chart)
+
+    await update.message.reply_text(message)
 
 # Messages handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -195,6 +254,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
             response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
                 'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
+
+        if 'run' in text:
+            username = update.message.from_user.username
+            response = f'@{username} cazzo scrivi Run, funziono solo con i comandi specifici e non quelli che ti inventi tu.'
 
         if response:
             await update.message.reply_text(response)
@@ -218,9 +281,9 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
                                user_choice),
             ],
-            DATE_CHOICE: [
+            DAY_CHOICE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               date_choice)
+                               day_choice)
             ],
             CONFIRM_CHOICE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
@@ -242,9 +305,9 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
                                user_choice),
             ],
-            DATE_CHOICE: [
+            DAY_CHOICE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               date_choice)
+                               day_choice)
             ],
             CONFIRM_CHOICE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
@@ -258,10 +321,49 @@ if __name__ == '__main__':
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
     )
     application.add_handler(manual_subtraction_handler)
-    
-    application.add_handler(CommandHandler('classifica', monthly_rank_command))
-    application.add_handler(CommandHandler('mese', monthly_user_command))
-    application.add_handler(CommandHandler('anno', yearly_user_command))
+
+    application.add_handler(CommandHandler('classifica_mese', monthly_rank_command))
+    application.add_handler(CommandHandler('classifica_anno', yearly_rank_command))
+
+    monthly_rank_handler = ConversationHandler(
+        entry_points=[CommandHandler('mese_x', date_choice)],
+        states={
+            DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               date_choice),
+            ],
+            CONFIRM_DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               confirm_date_choice)
+            ],
+            ERROR_CONVERSATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               error_conversation)
+            ],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+    )
+    application.add_handler(monthly_rank_handler)
+
+    yearly_rank_handler = ConversationHandler(
+        entry_points=[CommandHandler('anno_x', date_choice)],
+        states={
+            DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               date_choice),
+            ],
+            CONFIRM_DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               confirm_date_choice)
+            ],
+            ERROR_CONVERSATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                               error_conversation)
+            ],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+    )
+    application.add_handler(yearly_rank_handler)
 
     # Messages
     application.add_handler(MessageHandler(filters.TEXT, handle_message))
