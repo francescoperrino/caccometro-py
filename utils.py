@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 import calendar
 import matplotlib.pyplot as plt
 from database import get_count

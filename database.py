@@ -98,7 +98,7 @@ def get_dates(username, chat_id):
     conn = sqlite3.connect(os.path.join(db_folder, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
     # Execute SQL query to retrieve dates with count > 0 for the specified user
-    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username))
+    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username,))
     rows = c.fetchall()
     conn.close()
     # Format dates and return them

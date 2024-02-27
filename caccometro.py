@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
-from database import initialize_database, get_count, update_count, get_users, get_dates, get_rank, get_monthly_stats, get_yearly_stats
+from database import initialize_database, get_count, update_count, get_users, get_dates, get_rank
 from utils import storing_format, display_format, charts_folder, generate_table_and_chart
 import re
 
@@ -21,7 +21,7 @@ BOT_USERNAME = os.environ.get('BOT_USERNAME')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 # Define conversation states
-USER_CHOICE, DAY_CHOICE, CONFIRM_CHOICE, DATE_CHOICE, CONFIRM_DATE_CHOICE, ERROR_CONVERSATION = range(6)
+USER_CHOICE, DAY_CHOICE, CONFIRM_CHOICE, DATE_CHOICE, CONFIRM_DATE_CHOICE, END_COVERSATION, ERROR_CONVERSATION = range(7)
 
 # Command handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -120,17 +120,14 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"Il conteggio di @{selected_user} nel giorno {date_text} non può essere aggiornato poiché era già {count} 💩.",
                 reply_markup=ReplyKeyboardRemove())
 
-    return ConversationHandler.END
+    return END_COVERSATION
 
 async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Handler for selecting the date of the rank."""
     command = update.message.text
     context.user_data['command'] = command
-    await update.message.reply_text(
-        f'Hai scelto di mostrare la classifica {"mensile" if "/mese" in context.user_data["command"] else "annuale"}.\n'
-        f'Inserisci il {"mese in formato mm-YYYY" if "/mese" in context.user_data["command"] else "l\'anno in formato YYYY"}.\n'
-        'Se vuoi annullare, digita Annulla.')
-    
+    await update.message.reply_text(f'Hai scelto di mostrare la classifica {"mensile" if "/mese" in context.user_data["command"] else "annuale"}.\n Inserisci il {"mese in formato mm-YYYY" if "/mese" in context.user_data["command"] else "l anno in formato YYYY"}.\n Se vuoi annullare, digita Annulla.' )
+
     return CONFIRM_DATE_CHOICE
 
 async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -169,12 +166,10 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
         message = f'Ecco la classifica del mese {date_text}:\n'
         for i, (username, total_count) in enumerate(rank, start=1):
             message += f"{i}. @{username}: {total_count}\n"
-        
+
         generate_table_and_chart(rank, update.message.chat_id, 'month', date_text)
 
         date_parts = date_text.split('-')
-        month = int(date_parts[0])
-        year = int(date_parts[1])
         saving_date = str(date_parts[1]) + '_' + str(date_parts[0])
 
         with open(os.path.join(charts_folder, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
@@ -194,7 +189,7 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await update.message.reply_text(message)
 
-    return ConversationHandler.END
+    return END_COVERSATION
 
 async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handler for ending the conversation."""
@@ -226,7 +221,7 @@ async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYP
     year = now.strftime("%Y")
 
     rank = get_rank(update.message.chat_id, 'month', f'{month}-{year}')
-    message = f'Ecco la classifica del mese {f'{month}-{year}'}:\n'
+    message = f'Ecco la classifica del mese {month}-{year}:\n'
     for i, (username, total_count) in enumerate(rank, start=1):
         message += f"{i}. @{username}: {total_count}\n"
 
@@ -258,7 +253,6 @@ async def yearly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Messages handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
-    message_type: str = update.message.chat.type
 
     # Check if the message contains text and is not empty
     if update.message.text and update.message.text.strip():
@@ -298,23 +292,27 @@ if __name__ == '__main__':
         entry_points=[CommandHandler('aggiungi', user_choice)],
         states={
             USER_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                user_choice),
             ],
             DAY_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                day_choice)
             ],
             CONFIRM_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_choice)
             ],
+            END_COVERSATION: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               end_conversation)
+            ],
             ERROR_CONVERSATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               error_conversation)
+                MessageHandler(filters.TEXT, error_conversation)
             ],
         },
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+        allow_reentry = True,
     )
     application.add_handler(manual_addition_handler)
 
@@ -322,23 +320,27 @@ if __name__ == '__main__':
         entry_points=[CommandHandler('togli', user_choice)],
         states={
             USER_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                user_choice),
             ],
             DAY_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                day_choice)
             ],
             CONFIRM_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_choice)
             ],
+            END_COVERSATION: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               end_conversation)
+            ],
             ERROR_CONVERSATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               error_conversation)
+                MessageHandler(filters.TEXT, error_conversation)
             ],
         },
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+        allow_reentry = True,
     )
     application.add_handler(manual_subtraction_handler)
 
@@ -349,19 +351,23 @@ if __name__ == '__main__':
         entry_points=[CommandHandler('mese_x', date_choice)],
         states={
             DATE_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                date_choice),
             ],
             CONFIRM_DATE_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_date_choice)
             ],
+            END_COVERSATION: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               end_conversation)
+            ],
             ERROR_CONVERSATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               error_conversation)
+                MessageHandler(filters.TEXT, error_conversation)
             ],
         },
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+        allow_reentry = True,
     )
     application.add_handler(monthly_rank_handler)
 
@@ -369,19 +375,23 @@ if __name__ == '__main__':
         entry_points=[CommandHandler('anno_x', date_choice)],
         states={
             DATE_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                date_choice),
             ],
             CONFIRM_DATE_CHOICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_date_choice)
             ],
+            END_COVERSATION: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               end_conversation)
+            ],
             ERROR_CONVERSATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^Annulla$") & ~filters.Regex("^annulla$"),
-                               error_conversation)
+                MessageHandler(filters.TEXT, error_conversation)
             ],
         },
         fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+        allow_reentry = True,
     )
     application.add_handler(yearly_rank_handler)
 
