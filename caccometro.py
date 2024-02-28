@@ -163,29 +163,38 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if '/mese_x' in command:
         rank = get_rank(update.message.chat_id, 'month', date_text)
-        message = f'Ecco la classifica del mese {date_text}:\n'
-        for i, (username, total_count) in enumerate(rank, start=1):
-            message += f"{i}. @{username}: {total_count}\n"
+        if not rank:
+            await update.message.reply_text(f'Nel mese {date_text} non sono state contate 💩.', reply_markup=ReplyKeyboardRemove())
+            return ERROR_CONVERSATION
+        else:
+            message = f'Ecco la classifica del mese {date_text}:\n'
+            for i, (username, total_count) in enumerate(rank, start=1):
+                message += f"{i}. @{username}: {total_count}\n"
 
-        generate_table_and_chart(rank, update.message.chat_id, 'month', date_text)
+            generate_table_and_chart(rank, update.message.chat_id, 'month', date_text)
 
-        date_parts = date_text.split('-')
-        saving_date = str(date_parts[1]) + '_' + str(date_parts[0])
+            date_parts = date_text.split('-')
+            saving_date = str(date_parts[1]) + '_' + str(date_parts[0])
 
-        with open(os.path.join(charts_folder, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
-            await update.message.reply_photo(chart)
+            with open(os.path.join(charts_folder, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
+                await update.message.reply_photo(chart)
 
         await update.message.reply_text(message)
-    if '/anno_x' in command:
+
+    elif '/anno_x' in command:
         rank = get_rank(update.message.chat_id, 'year', date_text)
-        message = f'Ecco la classifica dell\'anno {date_text}:\n'
-        for i, (username, total_count) in enumerate(rank, start=1):
-            message += f"{i}. @{username}: {total_count}\n"
+        if not rank:
+            await update.message.reply_text(f'Nell\'anno {date_text} non sono state contate 💩.', reply_markup=ReplyKeyboardRemove())
+            return ERROR_CONVERSATION
+        else:
+            message = f'Ecco la classifica dell\'anno {date_text}:\n'
+            for i, (username, total_count) in enumerate(rank, start=1):
+                message += f"{i}. @{username}: {total_count}\n"
 
-        generate_table_and_chart(rank, update.message.chat_id, 'year', date_text)
+            generate_table_and_chart(rank, update.message.chat_id, 'year', date_text)
 
-        with open(os.path.join(charts_folder, f'{update.message.chat_id}_{date_text}.png'), 'rb') as chart:
-            await update.message.reply_photo(chart)
+            with open(os.path.join(charts_folder, f'{update.message.chat_id}_{date_text}.png'), 'rb') as chart:
+                await update.message.reply_photo(chart)
 
         await update.message.reply_text(message)
 
