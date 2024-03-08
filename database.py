@@ -3,7 +3,12 @@ import sqlite3
 from datetime import datetime
 import pytz
 import calendar
-from utils import STORING_FORMAT, DB_FOLDER
+
+# Define date formats
+STORING_FORMAT = "%Y-%m-%d"  # Format used for storing dates in the database
+
+# Folder to store databases
+DB_FOLDER = 'db'
 
 # Function to initialize the database
 def initialize_database(chat_id):

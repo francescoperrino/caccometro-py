@@ -7,11 +7,7 @@ from math import ceil
 from datetime import datetime
 
 # Define date formats
-STORING_FORMAT = "%Y-%m-%d"  # Format used for storing dates in the database
 DISPLAY_FORMAT = "%d-%m-%Y"  # Format used for displaying dates in messages
-
-# Folder to store databases
-DB_FOLDER = 'db'
 
 # Folder to store charts
 CHARTS_FOLDER = 'charts'
