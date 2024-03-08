@@ -7,21 +7,35 @@ from math import ceil
 from datetime import datetime
 
 # Define date formats
-storing_format = "%Y-%m-%d"  # Format used for storing dates in the database
-display_format = "%d-%m-%Y"  # Format used for displaying dates in messages
+STORING_FORMAT = "%Y-%m-%d"  # Format used for storing dates in the database
+DISPLAY_FORMAT = "%d-%m-%Y"  # Format used for displaying dates in messages
+
+# Folder to store databases
+DB_FOLDER = 'db'
 
 # Folder to store charts
-charts_folder = 'charts'
+CHARTS_FOLDER = 'charts'
 
 # Set the locale to Italian
 locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
 
 # Check if charts folder exists, if not, create it
-if not os.path.exists(charts_folder):
-    os.makedirs(charts_folder)
+if not os.path.exists(CHARTS_FOLDER):
+    os.makedirs(CHARTS_FOLDER)
 
 def generate_table_and_chart(rank, chat_id, time_period, date):
-    """Generates the monthly ranking table and chart."""
+    """
+    Generates the monthly ranking table and chart.
+
+    Args:
+        rank (list): List of tuples containing username and count.
+        chat_id (int): ID of the chat.
+        time_period (str): Time period ('month' or 'year').
+        date (str): Date in 'month-year' or 'year' format.
+
+    Returns:
+        None
+    """
     if time_period == 'month':
         # Parse the input date for monthly rank (format: month-year)
         date_parts = date.split('-')
@@ -166,7 +180,7 @@ def generate_table_and_chart(rank, chat_id, time_period, date):
     axes[1].set_xlim(left=1, right=days)
     
     # Save the figure to an image file
-    plt.savefig(os.path.join(charts_folder, f'{chat_id}_{saving_date}.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(CHARTS_FOLDER, f'{chat_id}_{saving_date}.png'), bbox_inches='tight')
 
     # Close figure
     plt.close(fig)

@@ -6,7 +6,7 @@ import pytz
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 from database import initialize_database, get_count, update_count, get_users, get_dates, get_rank
-from utils import storing_format, display_format, charts_folder, generate_table_and_chart
+from utils import STORING_FORMAT, DISPLAY_FORMAT, CHARTS_FOLDER, generate_table_and_chart
 import re
 
 # Enable logging
@@ -21,7 +21,7 @@ BOT_USERNAME = os.environ.get('BOT_USERNAME')
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 # Define conversation states
-USER_CHOICE, DAY_CHOICE, CONFIRM_CHOICE, DATE_CHOICE, CONFIRM_DATE_CHOICE, END_COVERSATION, ERROR_CONVERSATION = range(7)
+USER_CHOICE, DAY_CHOICE, CONFIRM_CHOICE, DATE_CHOICE, CONFIRM_DATE_CHOICE, END_CONVERSATION, ERROR_CONVERSATION = range(7)
 
 # Command handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,7 +30,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Ciao, sono Caccometro. Manda 💩 quando hai fatto il tuo dovere.')
 
 async def user_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Handler for selecting a user to update poop count."""
+    """Handler for selecting a user to update the poop count."""
     command = update.message.text
     context.user_data['command'] = command
     await update.message.reply_text(
@@ -55,7 +55,7 @@ async def user_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
         return DAY_CHOICE
 
 async def day_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Handler for selecting a date to update poop count."""
+    """Handler for selecting a date to update the poop count."""
     user = update.message.text
     context.user_data['selected_user'] = user
 
@@ -83,8 +83,8 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Handler for confirming the choice and updating the poop count."""
     date_text = update.message.text
     try:
-        selected_date = datetime.strptime(date_text, display_format).strftime(storing_format)
-        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
+        selected_date = datetime.strptime(date_text, DISPLAY_FORMAT).strftime(STORING_FORMAT)
+        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
         if selected_date > today:
             raise ValueError("La data selezionata è nel futuro.")
     except ValueError:
@@ -120,7 +120,7 @@ async def confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 f"Il conteggio di @{selected_user} nel giorno {date_text} non può essere aggiornato poiché era già {count} 💩.",
                 reply_markup=ReplyKeyboardRemove())
 
-    return END_COVERSATION
+    return END_CONVERSATION
 
 async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Handler for selecting the date of the rank."""
@@ -152,7 +152,7 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         # Parse the selected date
-        selected_date_datetime = datetime.strptime(selected_date, display_format).replace(tzinfo=pytz.timezone('Europe/Rome'))
+        selected_date_datetime = datetime.strptime(selected_date, DISPLAY_FORMAT).replace(tzinfo=pytz.timezone('Europe/Rome'))
         # Check if the selected date is in the future
         if selected_date_datetime > datetime.now(pytz.timezone('Europe/Rome')):
             raise ValueError("La data selezionata è nel futuro.")
@@ -176,7 +176,7 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             date_parts = date_text.split('-')
             saving_date = str(date_parts[1]) + '_' + str(date_parts[0])
 
-            with open(os.path.join(charts_folder, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
+            with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
                 await update.message.reply_photo(chart)
 
         await update.message.reply_text(message)
@@ -193,12 +193,12 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             generate_table_and_chart(rank, update.message.chat_id, 'year', date_text)
 
-            with open(os.path.join(charts_folder, f'{update.message.chat_id}_{date_text}.png'), 'rb') as chart:
+            with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{date_text}.png'), 'rb') as chart:
                 await update.message.reply_photo(chart)
 
         await update.message.reply_text(message)
 
-    return END_COVERSATION
+    return END_CONVERSATION
 
 async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handler for ending the conversation."""
@@ -236,7 +236,7 @@ async def monthly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     generate_table_and_chart(rank, update.message.chat_id, 'month', f'{month}-{year}')
 
-    with open(os.path.join(charts_folder, f'{update.message.chat_id}_{year}_{month}.png'), 'rb') as chart:
+    with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{year}_{month}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
     await update.message.reply_text(message)
@@ -254,7 +254,7 @@ async def yearly_rank_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     generate_table_and_chart(rank, update.message.chat_id, 'year', year)
 
-    with open(os.path.join(charts_folder, f'{update.message.chat_id}_{year}.png'), 'rb') as chart:
+    with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{year}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
     await update.message.reply_text(message)
@@ -273,7 +273,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if '💩' in text:
             username = update.message.from_user.username
-            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(storing_format)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
             update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
             response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
                 'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
@@ -290,13 +290,15 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for logging errors."""
     logger.error(f'Update "{update}" caused error "{context.error}"')
 
-# Main
+# Main function to handle bot interactions
+"""Main function to start the bot."""
+
+# Create the Application instance
 if __name__ == '__main__':
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Commands
+    # Add handlers
     application.add_handler(CommandHandler('start', start_command))
-
     manual_addition_handler = ConversationHandler(
         entry_points=[CommandHandler('aggiungi', user_choice)],
         states={
@@ -312,7 +314,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_choice)
             ],
-            END_COVERSATION: [
+            END_CONVERSATION: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                end_conversation)
             ],
@@ -340,7 +342,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_choice)
             ],
-            END_COVERSATION: [
+            END_CONVERSATION: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                end_conversation)
             ],
@@ -367,7 +369,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_date_choice)
             ],
-            END_COVERSATION: [
+            END_CONVERSATION: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                end_conversation)
             ],
@@ -391,7 +393,7 @@ if __name__ == '__main__':
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                confirm_date_choice)
             ],
-            END_COVERSATION: [
+            END_CONVERSATION: [
                 MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
                                end_conversation)
             ],
