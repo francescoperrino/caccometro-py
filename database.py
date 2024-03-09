@@ -142,6 +142,8 @@ def get_rank(chat_id, time_period, date):
 # Function to get the stats of users based on the count of poop emojis
 def get_statistics(chat_id, time_period, date):
     """Get the statistics of users based on the count of poop emojis for the specified time period."""
+    current_month = datetime.now().month
+    current_year = datetime.now().year
     if time_period == 'month':
         # Parse the input date for monthly rank (format: month-year)
         date_parts = date.split('-')
@@ -152,12 +154,17 @@ def get_statistics(chat_id, time_period, date):
         end_period = datetime.strptime(f'{month_str}-{year_str}', '%m-%Y')\
                         .replace(day=calendar.monthrange(int(year_str), int(month_str))[1])\
                         .strftime(STORING_FORMAT)
-        days = calendar.monthrange(int(year_str), int(month_str))[1]  # Number of days in the month
+        month = int(date_parts[0])
+        year = int(date_parts[1])
+        _, days = calendar.monthrange(year, month)  # Number of days in the month
+        current_days = datetime.now().day
     elif time_period == 'year':
         # Parse the input date for yearly rank (format: year)
         start_period = datetime.strptime(f'01-01-{date}', '%d-%m-%Y').strftime(STORING_FORMAT)
         end_period = datetime.strptime(f'31-12-{date}', '%d-%m-%Y').strftime(STORING_FORMAT)
+        year = int(date)
         days = 365 if calendar.isleap(int(date)) else 366  # Number of days in a year
+        current_days = (datetime.now() - datetime(current_year, 1, 1)).days + 1
     else:
         raise ValueError("Invalid time_period. It should be 'month' or 'year'.")
 
@@ -184,10 +191,21 @@ def get_statistics(chat_id, time_period, date):
         user_counts[username].append(count)
 
     # Calculate mean and variance for each user
-    user_statistics = {}
+    user_statistics = []
     for username, counts in user_counts.items():
-        mean = round(np.mean(counts) / days, 2)
-        variance = round(np.var(counts), 2)
-        user_statistics[username]= {'username': username, 'mean': mean, 'variance': variance}
+        # Calculate mean and variance based on days in the month or year
+        if time_period == 'month' and year == current_year and month == current_month:
+            mean = round(sum(counts) / current_days, 2)
+            variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
+        elif time_period == 'year' and year == current_year:
+            mean = round(sum(counts) / current_days, 2)
+            variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
+        else:
+            mean = round(sum(counts) / days, 2)
+            variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
+        user_statistics.append({'username': username, 'mean': mean, 'variance': variance})
 
-    return user_statistics
+    # Sort user_statistics by mean in descending order
+    sorted_user_statistics = sorted(user_statistics, key=lambda x: x['mean'], reverse=True)
+
+    return sorted_user_statistics

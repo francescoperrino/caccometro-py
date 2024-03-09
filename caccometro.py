@@ -211,8 +211,8 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             return ERROR_CONVERSATION
 
         message = f'Statistiche per il mese {date_text}:\n'
-        for i, (username, stats) in enumerate(statistics.items(), start=1):
-            message += f"{i}. @{username}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
+        for i, stats in enumerate(statistics, start=1):
+            message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
 
         await update.message.reply_text(message)
 
@@ -223,8 +223,8 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             return ERROR_CONVERSATION
 
         message = f'Statistiche per l\'anno {date_text}:\n'
-        for i, (username, stats) in enumerate(statistics.items(), start=1):
-            message += f"{i}. @{username}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
+        for i, stats in enumerate(statistics, start=1):
+            message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
 
         await update.message.reply_text(message)
 
@@ -304,10 +304,8 @@ async def monthly_stats_command(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     message = f'Ecco le statistiche del mese {month}-{year}:\n'
-    for i, (username, stats) in enumerate(statistics.items(), start=1):
-        mean = stats['mean']
-        variance = stats['variance']
-        message += f"{i}. @{username}: Media: {mean}, Varianza: {variance}\n"
+    for i, stats in enumerate(statistics, start=1):
+        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message)
 
@@ -325,10 +323,8 @@ async def yearly_stats_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     message = f'Ecco le statistiche dell\'anno {year}:\n'
-    for i, (username, stats) in enumerate(statistics.items(), start=1):
-        mean = stats['mean']
-        variance = stats['variance']
-        message += f"{i}. @{username}: Media: {mean}, Varianza: {variance}\n"
+    for i, stats in enumerate(statistics, start=1):
+        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message)
 
