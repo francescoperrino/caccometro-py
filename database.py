@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from datetime import datetime
-import pytz
+import numpy as np
 import calendar
 
 # Define date formats
@@ -139,42 +139,55 @@ def get_rank(chat_id, time_period, date):
     conn.close()
     return rows
 
-# Function to get the count of poop emojis for the specified user in the current month
-def get_monthly_stats(username, chat_id):
-    """Get the count of poop emojis for the specified user in the current month."""
-    # Get the current date in storing_format
-    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
-    start_month = today.replace(today[8:10], '01', 1)  # Set the start of the month
+# Function to get the stats of users based on the count of poop emojis
+def get_statistics(chat_id, time_period, date):
+    """Get the statistics of users based on the count of poop emojis for the specified time period."""
+    if time_period == 'month':
+        # Parse the input date for monthly rank (format: month-year)
+        date_parts = date.split('-')
+        month_str = date_parts[0].zfill(2)  # Add leading zero, if necessary
+        year_str = date_parts[1]
+        start_period = datetime.strptime(f'{month_str}-{year_str}', '%m-%Y').strftime(STORING_FORMAT)
+        # Get the end of the month
+        end_period = datetime.strptime(f'{month_str}-{year_str}', '%m-%Y')\
+                        .replace(day=calendar.monthrange(int(year_str), int(month_str))[1])\
+                        .strftime(STORING_FORMAT)
+        days = calendar.monthrange(int(year_str), int(month_str))[1]  # Number of days in the month
+    elif time_period == 'year':
+        # Parse the input date for yearly rank (format: year)
+        start_period = datetime.strptime(f'01-01-{date}', '%d-%m-%Y').strftime(STORING_FORMAT)
+        end_period = datetime.strptime(f'31-12-{date}', '%d-%m-%Y').strftime(STORING_FORMAT)
+        days = 365 if calendar.isleap(int(date)) else 366  # Number of days in a year
+    else:
+        raise ValueError("Invalid time_period. It should be 'month' or 'year'.")
+
     # Connect to the database
     conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
-    # Execute SQL query to get the count for the specified user in the current month
-    c.execute('SELECT date, count FROM user_count WHERE username = ? AND date >= ?', (username, start_month))
+
+    # Initialize dictionaries to store counts for each user
+    user_counts = {}
+    for user in get_users(chat_id):
+        user_counts[user] = []
+
+    # Execute SQL query to get the counts for each user in the specified period
+    c.execute('''SELECT username, date, count
+              FROM user_count
+              WHERE date BETWEEN ? AND ?
+              ORDER BY username, date''', (start_period, end_period))
+
     rows = c.fetchall()
     conn.close()
-    # Calculate and return the monthly count
-    monthly_count = sum(count for _, count in rows)
-    return monthly_count
 
-# Function to get the count of poop emojis for the specified user in the current year
-def get_yearly_stats(username, chat_id):
-    """Get the count of poop emojis for the specified user in the current year."""
-    # Get today's date
-    today = datetime.now(pytz.timezone('Europe/Rome'))
+    # Organize the counts into dictionaries for each user
+    for username, date, count in rows:
+        user_counts[username].append(count)
 
-    # Set the first day of the current year
-    start_year = today.replace(month=1, day=1)
+    # Calculate mean and variance for each user
+    user_statistics = {}
+    for username, counts in user_counts.items():
+        mean = round(np.mean(counts) / days, 2)
+        variance = round(np.var(counts), 2)
+        user_statistics[username]= {'username': username, 'mean': mean, 'variance': variance}
 
-    # Format the date in the desired format
-    start_year = start_year.strftime(STORING_FORMAT)
-    
-    # Connect to the database
-    conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
-    c = conn.cursor()
-    # Execute SQL query to get the count for the specified user in the current year
-    c.execute('SELECT date, count FROM user_count WHERE username = ? AND date >= ?', (username, start_year))
-    rows = c.fetchall()
-    conn.close()
-    # Calculate and return the yearly count
-    yearly_count = sum(count for _, count in rows)
-    return yearly_count
+    return user_statistics
