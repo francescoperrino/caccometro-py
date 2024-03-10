@@ -134,6 +134,8 @@ async def date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str
         await update.message.reply_text(f'Hai scelto di mostrare le statistiche mensili.\nInserisci il mese in formato mm-YYYY.\nSe vuoi annullare, digita Annulla.')
     elif "/statistiche_anno_x" in context.user_data["command"]:
         await update.message.reply_text(f'Hai scelto di mostrare le statistiche annuali.\nInserisci l\'anno in formato YYYY.\nSe vuoi annullare, digita Annulla.')
+    elif "/conto_giorno_x" in context.user_data["command"]:
+        await update.message.reply_text(f'Hai scelto di mostrare il conteggio giornaliero.\nInserisci il giorno in formato dd-mm-YYYY.\nSe vuoi annullare, digita Annulla.')
     return CONFIRM_DATE_CHOICE
 
 async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -155,6 +157,12 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             return ERROR_CONVERSATION
         # Append '01-01' to make it mm-YYYY format
         selected_date = f'01-01-{date_text}'
+    elif '/conto_giorno_x' in command:
+        # Check if the date has the format dd-mm-YYYY
+        if not re.match(r'\d{2}-\d{2}-\d{4}', date_text):
+            await update.message.reply_text("Il formato della data deve essere dd-mm-YYYY.", reply_markup=ReplyKeyboardRemove())
+            return ERROR_CONVERSATION
+        selected_date = date_text
 
     try:
         # Parse the selected date
@@ -227,6 +235,14 @@ async def confirm_date_choice(update: Update, context: ContextTypes.DEFAULT_TYPE
             message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
 
         await update.message.reply_text(message)
+
+    elif '/conto_giorno_x' in command:
+        username = update.message.from_user.username
+        count = get_count(username, date_text, update.message.chat_id)
+        if count != 0:
+            await update.message.reply_text(f"@{username} il giorno {date_text} hai fatto 💩 {count} {'volte' if count > 1 else 'volta'}.")
+        else:
+            await update.message.reply_text(f"@{username} il {date_text} non hai fatto 💩.")
 
     return END_CONVERSATION
 
@@ -328,6 +344,19 @@ async def yearly_stats_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await update.message.reply_text(message)
 
+async def daily_count_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for the /conto_giorno command, displays count of poop emojis for the specified user and date."""
+    today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+    username = update.message.from_user.username
+
+    # Get the count of poop emojis for the specified user and date
+    count = get_count(username, today, update.message.chat_id)
+
+    if count != 0:
+        await update.message.reply_text(f"@{username} oggi hai fatto 💩 {count} {'volte' if count > 1 else 'volta'}.")
+    else:
+        await update.message.reply_text(f"@{username} oggi non hai ancora fatto 💩. Sforzati dai 😭")
+
 # Messages handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
@@ -368,6 +397,12 @@ if __name__ == '__main__':
 
     # Add handlers
     application.add_handler(CommandHandler('start', start_command))
+    application.add_handler(CommandHandler('classifica_mese', monthly_rank_command))
+    application.add_handler(CommandHandler('classifica_anno', yearly_rank_command))
+    application.add_handler(CommandHandler('statistiche_mese', monthly_stats_command))
+    application.add_handler(CommandHandler('statistiche_anno', yearly_stats_command))
+    application.add_handler(CommandHandler('conto_giorno', daily_count_command))
+
     manual_addition_handler = ConversationHandler(
         entry_points=[CommandHandler('aggiungi', user_choice)],
         states={
@@ -424,9 +459,6 @@ if __name__ == '__main__':
     )
     application.add_handler(manual_subtraction_handler)
 
-    application.add_handler(CommandHandler('classifica_mese', monthly_rank_command))
-    application.add_handler(CommandHandler('classifica_anno', yearly_rank_command))
-
     monthly_rank_handler = ConversationHandler(
         entry_points=[CommandHandler('mese_x', date_choice)],
         states={
@@ -475,9 +507,6 @@ if __name__ == '__main__':
     )
     application.add_handler(yearly_rank_handler)
 
-    application.add_handler(CommandHandler('statistiche_mese', monthly_stats_command))
-    application.add_handler(CommandHandler('statistiche_anno', yearly_stats_command))
-
     monthly_rank_handler = ConversationHandler(
         entry_points=[CommandHandler('statistiche_mese_x', date_choice)],
         states={
@@ -525,6 +554,30 @@ if __name__ == '__main__':
         allow_reentry = True,
     )
     application.add_handler(yearly_rank_handler)
+
+    daily_count_handler = ConversationHandler(
+        entry_points=[CommandHandler('conto_giorno_x', date_choice)],
+        states={
+            DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               date_choice),
+            ],
+            CONFIRM_DATE_CHOICE: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               confirm_date_choice)
+            ],
+            END_CONVERSATION: [
+                MessageHandler(filters.TEXT & ~(filters.COMMAND | filters.Regex("^Annulla$") & filters.Regex("^annulla$")),
+                               end_conversation)
+            ],
+            ERROR_CONVERSATION: [
+                MessageHandler(filters.TEXT, error_conversation)
+            ],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^Annulla$") | filters.Regex("^annulla$"), end_conversation)],
+        allow_reentry = True,
+    )
+    application.add_handler(daily_count_handler)
 
     # Messages
     application.add_handler(MessageHandler(filters.TEXT, handle_message))

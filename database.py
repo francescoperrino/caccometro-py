@@ -35,7 +35,7 @@ def get_count(username, date, chat_id):
     conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
     
-    # Determine if the input date is a day or a month
+    # Determine if the input date is a day, a month, or invalid
     try:
         parsed_date = datetime.strptime(date, '%Y-%m-%d')
         start_date = parsed_date.strftime('%Y-%m-%d')
@@ -49,8 +49,13 @@ def get_count(username, date, chat_id):
             start_date = parsed_date.strftime('%Y-%m-01')
             end_date = parsed_date.strftime(f'%Y-%m-{days_in_month}')
         except ValueError:
-            conn.close()
-            return 0
+            try:
+                parsed_date = datetime.strptime(date, '%d-%m-%Y')
+                start_date = parsed_date.strftime('%Y-%m-%d')
+                end_date = parsed_date.strftime('%Y-%m-%d')
+            except ValueError:
+                conn.close()
+                return 0
     
     # Execute SQL query to retrieve the count for the specified user and date or month
     c.execute('SELECT SUM(count) FROM user_count WHERE username = ? AND date BETWEEN ? AND ?', (username, start_date, end_date))
@@ -172,22 +177,20 @@ def get_statistics(chat_id, time_period, date):
     conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
     c = conn.cursor()
 
-    # Initialize dictionaries to store counts for each user
-    user_counts = {}
-    for user in get_users(chat_id):
-        user_counts[user] = []
-
     # Execute SQL query to get the counts for each user in the specified period
-    c.execute('''SELECT username, date, count
+    c.execute('''SELECT username, count
               FROM user_count
               WHERE date BETWEEN ? AND ?
-              ORDER BY username, date''', (start_period, end_period))
+              ORDER BY username''', (start_period, end_period))
 
     rows = c.fetchall()
     conn.close()
 
     # Organize the counts into dictionaries for each user
-    for username, date, count in rows:
+    user_counts = {}
+    for username, count in rows:
+        if username not in user_counts:
+            user_counts[username] = []
         user_counts[username].append(count)
 
     # Calculate mean and variance for each user
@@ -205,7 +208,7 @@ def get_statistics(chat_id, time_period, date):
             variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
         user_statistics.append({'username': username, 'mean': mean, 'variance': variance})
 
-    # Sort user_statistics by mean in descending order
-    sorted_user_statistics = sorted(user_statistics, key=lambda x: x['mean'], reverse=True)
+    # Sort user_statistics by mean and variance in descending order
+    sorted_user_statistics = sorted(user_statistics, key=lambda x: (x['mean'], x['variance']), reverse=True)
 
     return sorted_user_statistics
