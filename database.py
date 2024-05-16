@@ -206,7 +206,7 @@ def get_statistics(chat_id, time_period, date):
             variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
         user_statistics.append({'username': username, 'mean': mean, 'variance': variance})
 
-    # Sort user_statistics by mean in ascending order and variance in descending order
-    sorted_user_statistics = sorted(user_statistics, key=lambda x: (x['mean'], -x['variance']))
+    # Sort user_statistics by mean in descending order and variance in ascending order
+    sorted_user_statistics = sorted(user_statistics, key=lambda x: (-x['mean'], x['variance']))
 
     return sorted_user_statistics
