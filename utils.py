@@ -6,18 +6,15 @@ import locale
 from math import ceil
 from datetime import datetime
 
-# Define date formats
+# Configurations
 DISPLAY_FORMAT = "%d-%m-%Y"  # Format used for displaying dates in messages
-
-# Folder to store charts
 CHARTS_FOLDER = 'charts'
 
 # Set the locale to Italian
 locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
 
 # Check if charts folder exists, if not, create it
-if not os.path.exists(CHARTS_FOLDER):
-    os.makedirs(CHARTS_FOLDER)
+os.makedirs(CHARTS_FOLDER, exist_ok=True)
 
 def generate_table_and_chart(rank, chat_id, time_period, date):
     """

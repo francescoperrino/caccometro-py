@@ -4,10 +4,8 @@ from datetime import datetime
 import numpy as np
 import calendar
 
-# Define date formats
+# Configurations
 STORING_FORMAT = "%Y-%m-%d"  # Format used for storing dates in the database
-
-# Folder to store databases
 DB_FOLDER = 'db'
 
 # Function to initialize the database
@@ -208,7 +206,7 @@ def get_statistics(chat_id, time_period, date):
             variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
         user_statistics.append({'username': username, 'mean': mean, 'variance': variance})
 
-    # Sort user_statistics by mean and variance in descending order
-    sorted_user_statistics = sorted(user_statistics, key=lambda x: (x['mean'], x['variance']), reverse=True)
+    # Sort user_statistics by mean in ascending order and variance in descending order
+    sorted_user_statistics = sorted(user_statistics, key=lambda x: (x['mean'], -x['variance']))
 
     return sorted_user_statistics
