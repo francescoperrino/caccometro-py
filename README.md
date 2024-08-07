@@ -43,18 +43,13 @@ Prima di poter avviare il bot, è necessario crearne uno nuovo su Telegram e con
    - Nella chat con [@BotFather](https://t.me/botfather), utilizza il comando `/setcommands` per configurare i comandi del bot. Puoi usare l'esempio seguente:
      ```
      start - Avvia il bot.
-     classifica_mese - Classifica del mese corrente.
-     classifica_anno - Classifica dell'anno corrente.
-     statistiche_mese - Statistiche del mese corrente.
-     statistiche_anno - Statistiche dell'anno corrente.
-     conto_giorno - Conteggio per il giorno corrente.
-     aggiungi - Aggiunge 1 all'utente nel giorno specificato.
-     togli - Sottrae 1 all'utente nel giorno specificato.
-     mese_x - Conteggio del mese specificato [mm-YYYY].
-     anno_x - Conteggio dell'anno specificato [YYYY].
-     statistiche_mese_x - Statistiche del mese specificato [mm-YYYY].
-     statistiche_anno_x - Statistiche dell'anno specificato [YYYY].
-     conto_giorno_x - Conteggio del giorno specificato [gg-mm-YYYY].
+     classifica_mese - Classifica mese (corrente o specifico [MM-YYYY]).
+     classifica_anno - Classifica dell'anno (corrente o specifico [YYYY]).
+     statistiche_mese - Statistiche del mese (corrente o specifico [MM-YYYY]).
+     statistiche_anno - Statistiche dell'anno (corrente o specifico [YYYY]).
+     conto_giorno - Conteggio per il giorno (corrente o specifico [DD-DD-YYYY]).
+     aggiungi - Aggiunge 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).
+     togli - Sottrae 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).
      ```
 
 2. **Configurazione delle Variabili d'Ambiente**:

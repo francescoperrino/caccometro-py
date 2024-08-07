@@ -80,33 +80,6 @@ def update_count(username, date, count, chat_id):
     conn.commit()
     conn.close()
 
-# Function to get a list of users who have a count of poop emojis greater than zero
-def get_users(chat_id):
-    """Get a list of users who have a count of poop emojis greater than zero."""
-    users = []
-    conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
-    c = conn.cursor()
-    c.execute('SELECT DISTINCT username FROM user_count WHERE count > 0')
-    rows = c.fetchall()
-    conn.close()
-    for row in rows:
-        users.append(row[0])
-    return users
-
-def get_dates(username, chat_id):
-    """Get a list of dates for which the specified user has a count of poop emojis greater than zero."""
-    dates = []
-    # Connect to the database
-    conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
-    c = conn.cursor()
-    # Execute SQL query to retrieve dates with count > 0 for the specified user
-    c.execute('SELECT date FROM user_count WHERE username = ? AND count > 0 ORDER BY date DESC LIMIT 10', (username,))
-    rows = c.fetchall()
-    conn.close()
-    # Format dates and return them
-    dates = [datetime.strptime(row[0], '%Y-%m-%d').strftime('%d-%m-%Y') for row in rows]
-    return dates
-
 # Function to get the rank of users based on the count of poop emojis
 def get_rank(chat_id, time_period, date):
     """Get the rank of users based on the count of poop emojis for the specified time period."""
