@@ -117,7 +117,7 @@ def get_rank(chat_id, time_period, date):
     conn.close()
     return rows
 
-# Function to get the stats of users based on the count of poop emojis
+# Function to get statistics of users based on the count of poop emojis
 def get_statistics(chat_id, time_period, date):
     """Get the statistics of users based on the count of poop emojis for the specified time period."""
     current_month = datetime.now().month
@@ -166,21 +166,34 @@ def get_statistics(chat_id, time_period, date):
             user_counts[username] = []
         user_counts[username].append(count)
 
-    # Calculate mean and variance for each user
+    # Calculate statistics for each user
     user_statistics = []
+    
     for username, counts in user_counts.items():
-        # Calculate mean and variance based on days in the month or year
-        if time_period == 'month' and year == current_year and month == current_month:
-            mean = round(sum(counts) / current_days, 2)
-            variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
-        elif time_period == 'year' and year == current_year:
-            mean = round(sum(counts) / current_days, 2)
-            variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
+        # If there's not enough data, skip the calculation or set default values
+        if len(counts) > 1:
+            if time_period == 'month' and year == current_year and month == current_month:
+                mean = round(sum(counts) / current_days, 2)
+                median = round(np.median(counts), 2)
+                variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
+            elif time_period == 'year' and year == current_year:
+                mean = round(sum(counts) / current_days, 2)
+                median = round(np.median(counts), 2)
+                variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
+            else:
+                mean = round(sum(counts) / days, 2)
+                median = round(np.median(counts), 2)
+                variance = round(sum((x - mean) ** 2 for x in counts) / days, 2) # ddof=1 for sample variance
         else:
-            mean = round(sum(counts) / days, 2)
-            variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
-        user_statistics.append({'username': username, 'mean': mean, 'variance': variance})
+            median = mean = variance = 0  # If there's not enough data, set default values
 
+        user_statistics.append({
+            'username': username,
+            'mean': mean,
+            'median': median,
+            'variance': variance
+        })
+    
     # Sort user_statistics by mean in descending order and variance in ascending order
     sorted_user_statistics = sorted(user_statistics, key=lambda x: (-x['mean'], x['variance']))
 
