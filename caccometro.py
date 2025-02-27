@@ -207,26 +207,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
 
     # Check if the message contains text and is not empty
-    if update.message.text and update.message.text.strip():
-        text: str = update.message.text.lower()
-        response: str = ''
+    if not update.message or not update.message.text:
+        return
+    
+    text: str = update.message.text.lower().strip()
+    response: str = ''
 
-        if BOT_USERNAME in text:
-            response = 'Cosa vuoi dirmi?'
+    if BOT_USERNAME in text:
+        response = 'Cosa vuoi dirmi?'
 
-        if '💩' in text:
-            username = update.message.from_user.username
-            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
-            update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
-            response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
-                'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
+    if '💩' in text:
+        username = update.message.from_user.username
+        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+        update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
+        response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
+            'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
 
-        if 'run' in text:
-            username = update.message.from_user.username
-            response = f'@{username} cazzo scrivi Run, funziono solo con i comandi specifici e non quelli che ti inventi tu.'
+    if 'run' in text:
+        username = update.message.from_user.username
+        response = f'@{username} cazzo scrivi Run, funziono solo con i comandi specifici e non quelli che ti inventi tu.'
 
-        if response:
-            await update.message.reply_text(response)
+    if response:
+        await update.message.reply_text(response)
 
 # Error handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -257,4 +259,8 @@ if __name__ == '__main__':
     application.add_error_handler(error)
 
     # Polling
-    application.run_polling(allowed_updates=filters.Update.MESSAGE)
+    while True:
+        try:
+            application.run_polling(allowed_updates=Update.MESSAGE, drop_pending_updates=True)
+        except Exception as e:
+            logger.error(f"Errore nel polling: {e}")
