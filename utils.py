@@ -15,6 +15,17 @@ locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
 # Check if charts folder exists, if not, create it
 os.makedirs(CHARTS_FOLDER, exist_ok=True)
 
+def ensure_datetime(value):
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value, DISPLAY_FORMAT)
+        except ValueError:
+            try:
+                return datetime.strptime(value, '%m-%Y')
+            except ValueError:
+                return None
+    return value
+
 def generate_table_and_chart(rank, chat_id, time_period, date):
     """
     Generates the monthly ranking table and chart.
@@ -239,19 +250,19 @@ def analyze_user_record(rows):
     max_streak_days = 0  # Longest sequence of consecutive days with occurrences
     max_streak_count = 0  # Highest sum of occurrences in a consecutive sequence
     max_gap_days = 0  # Longest sequence of consecutive days without occurrences
-    
+
     current_streak = 0
     current_streak_count = 0
     max_streak_start = max_streak_end = None
-    
     max_count_streak_start = max_count_streak_end = None
-    
+
     current_gap = 0
     max_gap_start = max_gap_end = None
-    
+
+    # Loop through all dates to find streaks and gaps
     for date in all_dates:
         count = records.get(date, 0)
-        
+
         if count > 0:
             # Streak tracking
             if current_streak == 0:
@@ -259,15 +270,24 @@ def analyze_user_record(rows):
             current_streak += 1
             current_streak_count += count
             
-            # If this is the longest streak, update
-            if current_streak > max_streak_days:
+            # If this is equal streak, append the period
+            if current_streak == max_streak_days:
+                max_streak_start.append(streak_start)
+                max_streak_end.append(date)
+            # If this is the longest streak, replace
+            elif current_streak > max_streak_days:
                 max_streak_days = current_streak
-                max_streak_start, max_streak_end = streak_start, date
+                max_streak_start = [streak_start]
+                max_streak_end = [date]
             
             # Tracking max count streak
-            if current_streak_count > max_streak_count:
+            if current_streak_count == max_streak_count:
+                max_count_streak_start.append(streak_start)
+                max_count_streak_end.append(date)
+            elif current_streak_count > max_streak_count:
                 max_streak_count = current_streak_count
-                max_count_streak_start, max_count_streak_end = streak_start, date
+                max_count_streak_start = [streak_start]
+                max_count_streak_end = [date]
             
             current_gap = 0  # Reset gap tracking
         else:
@@ -276,10 +296,15 @@ def analyze_user_record(rows):
                 gap_start = date
             current_gap += 1
             
-            # If this is the longest gap, update
+            # If this is equal gap, append the period
+            if current_gap == max_gap_days:
+                max_gap_start.append(gap_start)
+                max_gap_end.append(date)
+            # If this is the longest gap, replace
             if current_gap > max_gap_days:
                 max_gap_days = current_gap
-                max_gap_start, max_gap_end = gap_start, date
+                max_gap_start = [gap_start]
+                max_gap_end = [date]
             
             # Reset streak tracking
             current_streak = 0
@@ -287,15 +312,27 @@ def analyze_user_record(rows):
 
     return {
         "max_daily_count": max_daily_count,
-        "max_days": max_days,
+        "max_days": ', '.join([ensure_datetime(date).strftime(DISPLAY_FORMAT) for date in max_days]) if max_days else None,
         "max_monthly_count": max_monthly_count,
-        "max_months": max_months,
+        "max_months": ', '.join([ensure_datetime(month).strftime('%m-%Y') for month in max_months]) if max_months else None,
         "min_monthly_count": min_monthly_count,
-        "min_months": min_months,
+        "min_months": ', '.join([ensure_datetime(month).strftime('%m-%Y') for month in min_months]) if min_months else None,
         "max_streak_days": max_streak_days,
-        "max_streak_period": (max_streak_start.strftime(DISPLAY_FORMAT), max_streak_end.strftime(DISPLAY_FORMAT)) if max_streak_start else None,
+        "max_streak_period": (
+            ', '.join([f"{ensure_datetime(start).strftime(DISPLAY_FORMAT)} - {ensure_datetime(end).strftime(DISPLAY_FORMAT)}"
+                    for start, end in zip(max_streak_start, max_streak_end)])
+            if max_streak_start else None
+        ),
         "max_streak_count": max_streak_count,
-        "max_streak_count_period": (max_count_streak_start.strftime(DISPLAY_FORMAT), max_count_streak_end.strftime(DISPLAY_FORMAT)) if max_count_streak_start else None,
+        "max_streak_count_period": (
+            ', '.join([f"{ensure_datetime(start).strftime(DISPLAY_FORMAT)} - {ensure_datetime(end).strftime(DISPLAY_FORMAT)}"
+                    for start, end in zip(max_count_streak_start, max_count_streak_end)])
+            if max_count_streak_start else None
+        ),
         "max_gap_days": max_gap_days,
-        "max_gap_period": (max_gap_start.strftime(DISPLAY_FORMAT), max_gap_end.strftime(DISPLAY_FORMAT)) if max_gap_start else None,
+        "max_gap_period": (
+            ', '.join([f"{ensure_datetime(start).strftime(DISPLAY_FORMAT)} - {ensure_datetime(end).strftime(DISPLAY_FORMAT)}"
+                    for start, end in zip(max_gap_start, max_gap_end)])
+            if max_gap_start and max_gap_end else None
+        )
     }

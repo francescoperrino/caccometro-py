@@ -46,7 +46,14 @@ async def classifica_mese_command(update: Update, context: ContextTypes.DEFAULT_
 
     message = f'Ecco la classifica del mese {date}:\n'
     for i, (username, total_count) in enumerate(rank, start=1):
-        message += f"{i}. @{username}: {total_count}\n"
+        if i == 1:
+            message += f"🥇 @{username}: {total_count}\n"
+        elif i == 2:
+            message += f"🥈 @{username}: {total_count}\n"
+        elif i == 3:
+            message += f"🥉 @{username}: {total_count}\n"
+        else:
+            message += f"{i}. @{username}: {total_count}\n"
 
     generate_table_and_chart(rank, update.message.chat_id, 'month', date)
 
@@ -74,7 +81,14 @@ async def classifica_anno_command(update: Update, context: ContextTypes.DEFAULT_
 
     message = f'Ecco la classifica dell\'anno {year}:\n'
     for i, (username, total_count) in enumerate(rank, start=1):
-        message += f"{i}. @{username}: {total_count}\n"
+        if i == 1:
+            message += f"🥇 @{username}: {total_count}\n"
+        elif i == 2:
+            message += f"🥈 @{username}: {total_count}\n"
+        elif i == 3:
+            message += f"🥉 @{username}: {total_count}\n"
+        else:
+            message += f"{i}. @{username}: {total_count}\n"
 
     generate_table_and_chart(rank, update.message.chat_id, 'year', year)
 
@@ -104,7 +118,14 @@ async def statistiche_mese_command(update: Update, context: ContextTypes.DEFAULT
 
     message = f'Statistiche per il mese {date}:\n'
     for i, stats in enumerate(statistics, start=1):
-        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
+            if i == 1:
+                message += f"🥇 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            elif i == 2:
+                message += f"🥈 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            elif i == 3:
+                message += f"🥉 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            else:
+                message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message)
 
@@ -124,7 +145,14 @@ async def statistiche_anno_command(update: Update, context: ContextTypes.DEFAULT
 
     message = f'Statistiche per l\'anno {year}:\n'
     for i, stats in enumerate(statistics, start=1):
-        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Var: {stats['variance']:.2f}\n"
+        if i == 1:
+            message += f"🥇 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+        elif i == 2:
+            message += f"🥈 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+        elif i == 3:
+            message += f"🥉 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+        else:
+            message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message)
 
@@ -147,12 +175,12 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     message = (
         f"📊 *Statistiche per @{username}* 📊\n"
-        f"\n🥵 Hai fatto 💩 {record_data['max_daily_count']} {'volte' if record_data['max_daily_count'] > 1 else 'volta'} il {', '.join(record_data['max_days'])}."
-        f"\n🤩 Hai fatto 💩 {record_data['max_monthly_count']} {'volte' if record_data['max_monthly_count'] > 1 else 'volta'}  {'nei mesi'if len(record_data['max_months']) > 1 else 'nel mese'} {', '.join(record_data['max_months'])}."
-        f"\n😭 Hai fatto solo 💩 {record_data['min_monthly_count']} {'volte' if record_data['min_monthly_count'] > 1 else 'volta'} {'nei mesi'if len(record_data['min_months']) > 1 else 'nel mese'} {', '.join(record_data['min_months'])}."
-        f"\n🥳 Hai fatto 💩 per {record_data['max_streak_days']} giorni consecutivi ({record_data['max_streak_period'][0]} - {record_data['max_streak_period'][1]})."
-        f"\n🫣 Hai fatto 💩 {record_data['max_streak_count']} {'volte' if record_data['max_streak_count'] > 1 else 'volta'} in {record_data['max_streak_days']} {'giorni consecutivi' if record_data['max_streak_days'] > 1 else 'un giorno'} ({record_data['max_streak_period'][0]} - {record_data['max_streak_period'][1]})."
-        f"\n🤢 Non hai fatto 💩 per {record_data['max_gap_days']} giorni consecutivi ({record_data['max_gap_period'][0]} - {record_data['max_gap_period'][1]})."
+        f"\n🥵 Hai fatto 💩 {record_data['max_daily_count']} {'volte' if record_data['max_daily_count'] > 1 else 'volta'} il {record_data['max_days']}."
+        f"\n🤩 Hai fatto 💩 {record_data['max_monthly_count']} {'volte' if record_data['max_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['max_months']) > 1 else 'nel mese'} {record_data['max_months']}."
+        f"\n😭 Hai fatto solo 💩 {record_data['min_monthly_count']} {'volte' if record_data['min_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['min_months']) > 1 else 'nel mese'} {record_data['min_months']}."
+        f"\n🥳 Hai fatto 💩 per {record_data['max_streak_days']} giorni consecutivi ({record_data['max_streak_period']})."
+        f"\n🫣 Hai fatto 💩 {record_data['max_streak_count']} {'volte' if record_data['max_streak_count'] > 1 else 'volta'} in {record_data['max_streak_days']} {'giorni consecutivi' if record_data['max_streak_days'] > 1 else 'un giorno'} ({record_data['max_streak_count_period']})."
+        f"\n🤢 Non hai fatto 💩 per {record_data['max_gap_days']} giorni consecutivi ({record_data['max_gap_period']})."
     )
     
     await update.message.reply_text(message, parse_mode='Markdown')
