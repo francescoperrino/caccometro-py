@@ -5,8 +5,8 @@ from datetime import datetime
 import pytz
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from database import STORING_FORMAT, initialize_database, get_count, update_count, get_rank, get_statistics
-from utils import DISPLAY_FORMAT, CHARTS_FOLDER, generate_table_and_chart
+from database import STORING_FORMAT, DISPLAY_FORMAT, CHARTS_FOLDER, initialize_database, get_count, update_count, get_rank, get_statistics, get_record
+from utils import generate_table_and_chart, analyze_user_record
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -124,9 +124,38 @@ async def statistiche_anno_command(update: Update, context: ContextTypes.DEFAULT
 
     message = f'Statistiche per l\'anno {year}:\n'
     for i, stats in enumerate(statistics, start=1):
-        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Varianza: {stats['variance']:.2f}\n"
+        message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Var: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message)
+
+async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for the /record command."""
+    args = context.args
+    if args:
+        username = args[0][1:]
+    else:
+        username = update.message.from_user.username
+    
+    chat_id = update.message.chat_id
+    rows = get_record(username, chat_id)
+    
+    if not rows:
+        await update.message.reply_text(f"Nessun dato disponibile per @{username}.")
+        return
+    
+    record_data = analyze_user_record(rows)
+    
+    message = (
+        f"📊 *Statistiche per @{username}* 📊\n"
+        f"\n🥵 Hai fatto 💩 {record_data['max_daily_count']} {'volte' if record_data['max_daily_count'] > 1 else 'volta'} il {', '.join(record_data['max_days'])}."
+        f"\n🤩 Hai fatto 💩 {record_data['max_monthly_count']} {'volte' if record_data['max_monthly_count'] > 1 else 'volta'}  {'nei mesi'if len(record_data['max_months']) > 1 else 'nel mese'} {', '.join(record_data['max_months'])}."
+        f"\n😭 Hai fatto solo 💩 {record_data['min_monthly_count']} {'volte' if record_data['min_monthly_count'] > 1 else 'volta'} {'nei mesi'if len(record_data['min_months']) > 1 else 'nel mese'} {', '.join(record_data['min_months'])}."
+        f"\n🥳 Hai fatto 💩 per {record_data['max_streak_days']} giorni consecutivi ({record_data['max_streak_period'][0]} - {record_data['max_streak_period'][1]})."
+        f"\n🫣 Hai fatto 💩 {record_data['max_streak_count']} {'volte' if record_data['max_streak_count'] > 1 else 'volta'} in {record_data['max_streak_days']} {'giorni consecutivi' if record_data['max_streak_days'] > 1 else 'un giorno'} ({record_data['max_streak_period'][0]} - {record_data['max_streak_period'][1]})."
+        f"\n🤢 Non hai fatto 💩 per {record_data['max_gap_days']} giorni consecutivi ({record_data['max_gap_period'][0]} - {record_data['max_gap_period'][1]})."
+    )
+    
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def aggiungi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /aggiungi command."""
@@ -135,11 +164,11 @@ async def aggiungi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Formato non valido. Usa: /aggiungi @username DD-MM-YYYY")
         return
 
-    username = args[0][1:]  # Rimuovi il @
+    username = args[0][1:]
     date = args[1]
 
     try:
-        parsed_date = datetime.strptime(date, "%d-%m-%Y")
+        parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
         selected_date = parsed_date.strftime(STORING_FORMAT)
         today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
         if selected_date > today:
@@ -164,7 +193,7 @@ async def togli_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date = args[1]
 
     try:
-        parsed_date = datetime.strptime(date, "%d-%m-%Y")
+        parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
         selected_date = parsed_date.strftime(STORING_FORMAT)
         today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
         if selected_date > today:
@@ -187,7 +216,7 @@ async def conto_giorno_command(update: Update, context: ContextTypes.DEFAULT_TYP
     args = context.args
     if args:
         try:
-            date = datetime.strptime(args[0], "%d-%m-%Y").strftime(STORING_FORMAT)
+            date = datetime.strptime(args[0], DISPLAY_FORMAT).strftime(STORING_FORMAT)
         except ValueError:
             await update.message.reply_text("Formato data non valido. Usa DD-MM-YYYY.")
             return
@@ -248,6 +277,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('classifica_anno', classifica_anno_command))
     application.add_handler(CommandHandler('statistiche_mese', statistiche_mese_command))
     application.add_handler(CommandHandler('statistiche_anno', statistiche_anno_command))
+    application.add_handler(CommandHandler('record', record_command))
     application.add_handler(CommandHandler('aggiungi', aggiungi_command))
     application.add_handler(CommandHandler('togli', togli_command))
     application.add_handler(CommandHandler('conto_giorno', conto_giorno_command))
@@ -263,4 +293,4 @@ if __name__ == '__main__':
         try:
             application.run_polling(allowed_updates=Update.MESSAGE, drop_pending_updates=True)
         except Exception as e:
-            logger.error(f"Errore nel polling: {e}")
+            logger.error(f"Error in polling: {e}")

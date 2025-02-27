@@ -6,7 +6,9 @@ import calendar
 
 # Configurations
 STORING_FORMAT = "%Y-%m-%d"  # Format used for storing dates in the database
+DISPLAY_FORMAT = "%d-%m-%Y"  # Format used for displaying dates in messages
 DB_FOLDER = 'db'
+CHARTS_FOLDER = 'charts'
 
 # Function to initialize the database
 def initialize_database(chat_id):
@@ -35,9 +37,9 @@ def get_count(username, date, chat_id):
     
     # Determine if the input date is a day, a month, or invalid
     try:
-        parsed_date = datetime.strptime(date, '%Y-%m-%d')
-        start_date = parsed_date.strftime('%Y-%m-%d')
-        end_date = parsed_date.strftime('%Y-%m-%d')
+        parsed_date = datetime.strptime(date, STORING_FORMAT)
+        start_date = parsed_date.strftime(STORING_FORMAT)
+        end_date = parsed_date.strftime(STORING_FORMAT)
     except ValueError:
         try:
             parsed_date = datetime.strptime(date, '%Y-%m')
@@ -49,8 +51,8 @@ def get_count(username, date, chat_id):
         except ValueError:
             try:
                 parsed_date = datetime.strptime(date, '%d-%m-%Y')
-                start_date = parsed_date.strftime('%Y-%m-%d')
-                end_date = parsed_date.strftime('%Y-%m-%d')
+                start_date = parsed_date.strftime(STORING_FORMAT)
+                end_date = parsed_date.strftime(STORING_FORMAT)
             except ValueError:
                 conn.close()
                 return 0
@@ -183,3 +185,21 @@ def get_statistics(chat_id, time_period, date):
     sorted_user_statistics = sorted(user_statistics, key=lambda x: (-x['mean'], x['variance']))
 
     return sorted_user_statistics
+
+# Function to get the records for the specific user
+def get_record(username, chat_id):
+    """Get the records for the specific user."""
+    # Connect to the database
+    conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
+    c = conn.cursor()
+
+    # Execute SQL query to get the records for the specific user
+    c.execute('''SELECT date, count
+              FROM user_count
+              WHERE username = ?
+              ORDER BY date''', (username,))
+
+    rows = c.fetchall()
+    conn.close()
+
+    return rows

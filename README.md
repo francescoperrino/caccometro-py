@@ -47,6 +47,7 @@ Prima di poter avviare il bot, è necessario crearne uno nuovo su Telegram e con
      classifica_anno - Classifica dell'anno (corrente o specifico [YYYY]).
      statistiche_mese - Statistiche del mese (corrente o specifico [MM-YYYY]).
      statistiche_anno - Statistiche dell'anno (corrente o specifico [YYYY]).
+     record - Record dell'utente (@username).
      conto_giorno - Conteggio per il giorno (corrente o specifico [DD-DD-YYYY]).
      aggiungi - Aggiunge 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).
      togli - Sottrae 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).

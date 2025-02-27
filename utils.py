@@ -1,14 +1,13 @@
 import os
 import calendar
 import matplotlib.pyplot as plt
-from database import get_count
+import matplotlib
+matplotlib.use('Agg')
+from database import get_count, DISPLAY_FORMAT, CHARTS_FOLDER
 import locale
 from math import ceil
-from datetime import datetime
-
-# Configurations
-DISPLAY_FORMAT = "%d-%m-%Y"  # Format used for displaying dates in messages
-CHARTS_FOLDER = 'charts'
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 # Set the locale to Italian
 locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
@@ -177,3 +176,126 @@ def generate_table_and_chart(rank, chat_id, time_period, date):
 
     # Close figure
     plt.close(fig)
+
+def analyze_user_record(rows):
+    """
+    Analyzes user activity records to extract key statistics, including longest streaks, 
+    maximum and minimum occurrences, and longest gap periods.
+
+    Args:
+        rows (list of tuples): A list of (date, count) tuples, where:
+            - date (str): The date in 'YYYY-MM-DD' format.
+            - count (int): The recorded count for that date.
+
+    Returns:
+        dict: A dictionary containing:
+            - 'max_daily_count' (int): The highest count recorded in a single day.
+            - 'max_days' (list): A list of dates (%d-%m-%Y) with the highest count.
+            - 'max_monthly_count' (int): The highest total count recorded in a month.
+            - 'max_months' (list): A list of months (%m-%Y) with the highest count.
+            - 'min_monthly_count' (int): The lowest total count recorded in a month.
+            - 'min_months' (list): A list of months (%m-%Y) with the lowest count.
+            - 'max_streak_days' (int): The longest consecutive streak of recorded occurrences.
+            - 'max_streak_period' (tuple or None): The start and end dates (%d-%m-%Y) of the longest streak, 
+            or None if no streak exists.
+            - 'max_streak_count' (int): The highest total occurrences over a consecutive streak.
+            - 'max_streak_count_period' (tuple or None): The start and end dates (%d-%m-%Y) of this occurrence streak, 
+            or None if no such streak exists.
+            - 'max_gap_days' (int): The longest period without recorded occurrences.
+            - 'max_gap_period' (tuple or None): The start and end dates (%d-%m-%Y) of the longest gap period, 
+            or None if no gap exists.
+    """
+    # Convert records into a dictionary
+    records = {datetime.strptime(date, "%Y-%m-%d"): count for date, count in rows}
+    
+    # Finding daily max counts
+    max_daily_count = max(records.values())
+    max_days = [date.strftime(DISPLAY_FORMAT) for date, count in records.items() if count == max_daily_count]
+    
+    # Find monthly max and min counts
+    monthly_counts = defaultdict(int)
+    for date, count in records.items():
+        monthly_counts[(date.year, date.month)] += count
+
+    now = datetime.now()
+    current_month = (now.year, now.month)
+
+    # Finding the max and min monthly counts excluding the current month
+    max_monthly_count = max((count for (year, month), count in monthly_counts.items() if (year, month) != current_month), default=None)
+    min_monthly_count = min((count for (year, month), count in monthly_counts.items() if (year, month) != current_month), default=None)
+
+    # Retrieving months with max and min counts
+    max_months = [f"{month:02d}-{year}" for (year, month), count in monthly_counts.items() if count == max_monthly_count]
+    min_months = [f"{month:02d}-{year}" for (year, month), count in monthly_counts.items() if count == min_monthly_count]
+
+    # Calculate the date range from the first to the last occurrence date
+    sorted_dates = sorted(records.keys())
+    start_date = sorted_dates[0]
+    end_date = sorted_dates[-1]
+
+    # Generate all dates within the range
+    all_dates = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+
+    max_streak_days = 0  # Longest sequence of consecutive days with occurrences
+    max_streak_count = 0  # Highest sum of occurrences in a consecutive sequence
+    max_gap_days = 0  # Longest sequence of consecutive days without occurrences
+    
+    current_streak = 0
+    current_streak_count = 0
+    max_streak_start = max_streak_end = None
+    
+    max_count_streak_start = max_count_streak_end = None
+    
+    current_gap = 0
+    max_gap_start = max_gap_end = None
+    
+    for date in all_dates:
+        count = records.get(date, 0)
+        
+        if count > 0:
+            # Streak tracking
+            if current_streak == 0:
+                streak_start = date
+            current_streak += 1
+            current_streak_count += count
+            
+            # If this is the longest streak, update
+            if current_streak > max_streak_days:
+                max_streak_days = current_streak
+                max_streak_start, max_streak_end = streak_start, date
+            
+            # Tracking max count streak
+            if current_streak_count > max_streak_count:
+                max_streak_count = current_streak_count
+                max_count_streak_start, max_count_streak_end = streak_start, date
+            
+            current_gap = 0  # Reset gap tracking
+        else:
+            # Gap tracking
+            if current_gap == 0:
+                gap_start = date
+            current_gap += 1
+            
+            # If this is the longest gap, update
+            if current_gap > max_gap_days:
+                max_gap_days = current_gap
+                max_gap_start, max_gap_end = gap_start, date
+            
+            # Reset streak tracking
+            current_streak = 0
+            current_streak_count = 0
+
+    return {
+        "max_daily_count": max_daily_count,
+        "max_days": max_days,
+        "max_monthly_count": max_monthly_count,
+        "max_months": max_months,
+        "min_monthly_count": min_monthly_count,
+        "min_months": min_months,
+        "max_streak_days": max_streak_days,
+        "max_streak_period": (max_streak_start.strftime(DISPLAY_FORMAT), max_streak_end.strftime(DISPLAY_FORMAT)) if max_streak_start else None,
+        "max_streak_count": max_streak_count,
+        "max_streak_count_period": (max_count_streak_start.strftime(DISPLAY_FORMAT), max_count_streak_end.strftime(DISPLAY_FORMAT)) if max_count_streak_start else None,
+        "max_gap_days": max_gap_days,
+        "max_gap_period": (max_gap_start.strftime(DISPLAY_FORMAT), max_gap_end.strftime(DISPLAY_FORMAT)) if max_gap_start else None,
+    }
