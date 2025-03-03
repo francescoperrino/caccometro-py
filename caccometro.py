@@ -5,11 +5,17 @@ from datetime import datetime
 import pytz
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from database import STORING_FORMAT, DISPLAY_FORMAT, CHARTS_FOLDER, initialize_database, get_count, update_count, get_rank, get_statistics, get_record
+from database import STORING_FORMAT, DISPLAY_FORMAT, CHARTS_FOLDER, init_database, get_count, update_count, get_rank, get_statistics, get_record, get_constipation_days
 from utils import generate_table_and_chart, analyze_user_record
 
 # Enable logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+log_filename = "caccometro.log"
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    level=logging.INFO,
+                    handlers=[
+                        logging.FileHandler(log_filename, encoding = 'utf-8'),
+                        logging.StreamHandler()
+                    ])
 # Set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -22,8 +28,9 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 # Command handlers
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /start command."""
-    initialize_database(update.message.chat_id)
-    await update.message.reply_text('Ciao, sono Caccometro. Manda 💩 quando hai fatto il tuo dovere.')
+    init_database(update.message.chat_id)
+    await update.message.reply_text("Ciao, sono 🤖 *Caccometro* 🤖.\n"
+                                    "Manda 💩 quando hai fatto il tuo dovere.", parse_mode='Markdown')
 
 async def classifica_mese_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /classifica_mese command."""
@@ -41,17 +48,17 @@ async def classifica_mese_command(update: Update, context: ContextTypes.DEFAULT_
 
     rank = get_rank(update.message.chat_id, 'month', date)
     if not rank:
-        await update.message.reply_text(f'Nel mese {date} non sono state contate 💩.')
+        await update.message.reply_text(f"Nel mese {date} non sono state contate 💩.")
         return
 
-    message = f'Ecco la classifica del mese {date}:\n'
+    message = f"Ecco la *classifica del mese {date}*:\n"
     for i, (username, total_count) in enumerate(rank, start=1):
         if i == 1:
-            message += f"🥇 @{username}: {total_count}\n"
+            message += f"🥇 *@{username}*: {total_count}\n"
         elif i == 2:
-            message += f"🥈 @{username}: {total_count}\n"
+            message += f"🥈 *@{username}*: {total_count}\n"
         elif i == 3:
-            message += f"🥉 @{username}: {total_count}\n"
+            message += f"🥉 *@{username}*: {total_count}\n"
         else:
             message += f"{i}. @{username}: {total_count}\n"
 
@@ -79,14 +86,14 @@ async def classifica_anno_command(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text(f'Nell\'anno {year} non sono state contate 💩.')
         return
 
-    message = f'Ecco la classifica dell\'anno {year}:\n'
+    message = f"Ecco la *classifica dell\'anno {year}*:\n"
     for i, (username, total_count) in enumerate(rank, start=1):
         if i == 1:
-            message += f"🥇 @{username}: {total_count}\n"
+            message += f"🥇 *@{username}*: {total_count}\n"
         elif i == 2:
-            message += f"🥈 @{username}: {total_count}\n"
+            message += f"🥈 *@{username}*: {total_count}\n"
         elif i == 3:
-            message += f"🥉 @{username}: {total_count}\n"
+            message += f"🥉 *@{username}*: {total_count}\n"
         else:
             message += f"{i}. @{username}: {total_count}\n"
 
@@ -95,7 +102,7 @@ async def classifica_anno_command(update: Update, context: ContextTypes.DEFAULT_
     with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{year}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def statistiche_mese_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /statistiche_mese command."""
@@ -113,21 +120,21 @@ async def statistiche_mese_command(update: Update, context: ContextTypes.DEFAULT
 
     statistics = get_statistics(update.message.chat_id, 'month', date)
     if not statistics:
-        await update.message.reply_text(f'Nessuna statistica disponibile per il mese {date}.')
+        await update.message.reply_text(f"Nessuna statistica disponibile per il mese {date}.")
         return
 
-    message = f'Statistiche per il mese {date}:\n'
+    message = f"*Statistiche per il mese {date}*:\n"
     for i, stats in enumerate(statistics, start=1):
             if i == 1:
-                message += f"🥇 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
             elif i == 2:
-                message += f"🥈 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
             elif i == 3:
-                message += f"🥉 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
             else:
                 message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def statistiche_anno_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /statistiche_anno command."""
@@ -140,21 +147,21 @@ async def statistiche_anno_command(update: Update, context: ContextTypes.DEFAULT
 
     statistics = get_statistics(update.message.chat_id, 'year', year)
     if not statistics:
-        await update.message.reply_text(f'Nessuna statistica disponibile per l\'anno {year}.')
+        await update.message.reply_text(f"Nessuna statistica disponibile per l\'anno {year}.")
         return
 
-    message = f'Statistiche per l\'anno {year}:\n'
+    message = f"*Statistiche per l\'anno {year}*:\n"
     for i, stats in enumerate(statistics, start=1):
         if i == 1:
-            message += f"🥇 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
         elif i == 2:
-            message += f"🥈 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
         elif i == 3:
-            message += f"🥉 @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
         else:
             message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /record command."""
@@ -174,13 +181,13 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     record_data = analyze_user_record(rows)
     
     message = (
-        f"📊 *Statistiche per @{username}* 📊\n"
-        f"\n🥵 Hai fatto 💩 {record_data['max_daily_count']} {'volte' if record_data['max_daily_count'] > 1 else 'volta'} il {record_data['max_days']}."
-        f"\n🤩 Hai fatto 💩 {record_data['max_monthly_count']} {'volte' if record_data['max_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['max_months']) > 1 else 'nel mese'} {record_data['max_months']}."
-        f"\n😭 Hai fatto solo 💩 {record_data['min_monthly_count']} {'volte' if record_data['min_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['min_months']) > 1 else 'nel mese'} {record_data['min_months']}."
-        f"\n🥳 Hai fatto 💩 per {record_data['max_streak_days']} giorni consecutivi ({record_data['max_streak_period']})."
-        f"\n🫣 Hai fatto 💩 {record_data['max_streak_count']} {'volte' if record_data['max_streak_count'] > 1 else 'volta'} in {record_data['max_streak_days']} {'giorni consecutivi' if record_data['max_streak_days'] > 1 else 'un giorno'} ({record_data['max_streak_count_period']})."
-        f"\n🤢 Non hai fatto 💩 per {record_data['max_gap_days']} giorni consecutivi ({record_data['max_gap_period']})."
+        f"📊 *Record per @{username}* 📊\n\n"
+        f"🥵 Hai fatto 💩 {record_data['max_daily_count']} {'volte' if record_data['max_daily_count'] > 1 else 'volta'} il {record_data['max_days']}.\n"
+        f"🤩 Hai fatto 💩 {record_data['max_monthly_count']} {'volte' if record_data['max_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['max_months']) > 1 else 'nel mese'} {record_data['max_months']}.\n"
+        f"😭 Hai fatto solo 💩 {record_data['min_monthly_count']} {'volte' if record_data['min_monthly_count'] > 1 else 'volta'} {'nei mesi' if len(record_data['min_months']) > 1 else 'nel mese'} {record_data['min_months']}.\n"
+        f"🥳 Hai fatto 💩 per {record_data['max_streak_days']} giorni consecutivi ({record_data['max_streak_period']}).\n"
+        f"🫣 Hai fatto 💩 {record_data['max_streak_count']} {'volte' if record_data['max_streak_count'] > 1 else 'volta'} in {record_data['max_streak_days']} {'giorni consecutivi' if record_data['max_streak_days'] > 1 else 'un giorno'} ({record_data['max_streak_count_period']}).\n"
+        f"🤢 Non hai fatto 💩 per {record_data['max_gap_days']} giorni consecutivi ({record_data['max_gap_period']})."
     )
     
     await update.message.reply_text(message, parse_mode='Markdown')
@@ -262,30 +269,34 @@ async def conto_giorno_command(update: Update, context: ContextTypes.DEFAULT_TYP
 # Messages handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
-
     # Check if the message contains text and is not empty
     if not update.message or not update.message.text:
         return
-    
+
     text: str = update.message.text.lower().strip()
-    response: str = ''
+    username: str = update.message.from_user.username
+    response: str = ""
 
     if BOT_USERNAME in text:
-        response = 'Cosa vuoi dirmi?'
+        response = "Cosa vuoi dirmi?"
 
-    if '💩' in text:
-        username = update.message.from_user.username
-        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
-        update_count(username, today, get_count(username, today, update.message.chat_id) + 1, update.message.chat_id)
-        response = f'Complimenti @{username}, oggi hai fatto 💩 {get_count(username, today, update.message.chat_id)} ' + (
-            'volte' if get_count(username, today, update.message.chat_id) > 1 else 'volta') + '!'
+    elif "💩" in text:
+        today = datetime.now(pytz.timezone("Europe/Rome")).strftime(STORING_FORMAT)
+        chat_id = update.message.chat_id
 
-    if 'run' in text:
-        username = update.message.from_user.username
-        response = f'@{username} cazzo scrivi Run, funziono solo con i comandi specifici e non quelli che ti inventi tu.'
+        count = get_count(username, today, chat_id) + 1
+        update_count(username, today, count, chat_id)
+
+        response = f"Complimenti @{username}, oggi hai fatto 💩 {count} " + ("volte!" if count > 1 else "volta!")
+
+    elif "run" in text:
+        response = f"@{username} cazzo scrivi *Run*, funziono solo con i comandi specifici e non quelli che ti inventi tu."
 
     if response:
-        await update.message.reply_text(response)
+        await update.message.reply_text(response, parse_mode='Markdown')
+
+    # Log for debugging
+    logging.info(f"Messaggio ricevuto da @{username}: {text} | Risposta: {response}")
 
 # Error handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -294,9 +305,8 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Main function to handle bot interactions
 """Main function to start the bot."""
-
-# Create the Application instance
 if __name__ == '__main__':
+    # Create the Application instance
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Add handlers
@@ -319,6 +329,6 @@ if __name__ == '__main__':
     # Polling
     while True:
         try:
-            application.run_polling(allowed_updates=Update.MESSAGE, drop_pending_updates=True)
+            application.run_polling(allowed_updates = Update.MESSAGE, drop_pending_updates = True)
         except Exception as e:
             logger.error(f"Error in polling: {e}")

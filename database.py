@@ -11,7 +11,7 @@ DB_FOLDER = 'db'
 CHARTS_FOLDER = 'charts'
 
 # Function to initialize the database
-def initialize_database(chat_id):
+def init_database(chat_id):
     """Initialize the SQLite database if it doesn't exist."""
     # Check if the database folder exists, if not, create it
     if not os.path.exists(DB_FOLDER):
