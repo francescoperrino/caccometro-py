@@ -266,6 +266,24 @@ async def conto_giorno_command(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         await update.message.reply_text(f"@{username} il {args[0] if args else 'oggi'} non hai fatto 💩.")
 
+async def costipazione_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for the /costipazione command."""
+    args = context.args
+    if args:
+        username = args[0][1:]
+    else:
+        username = update.message.from_user.username
+
+    constipation_days = get_constipation_days(username, update.message.chat_id)
+    
+    if constipation_days is not None:
+        if constipation_days == 0:
+            await update.message.reply_text(f"@{username} oggi hai fatto 💩.")
+        else:
+            await update.message.reply_text(f"@{username} il non fai 💩 da {constipation_days} {'giorni' if constipation_days > 1 else 'giorno'}.")
+    else:
+        await update.message.reply_text(f"@{username} non ci sono dati sulla costipazione.")
+
 # Messages handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for processing messages."""
@@ -319,6 +337,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('aggiungi', aggiungi_command))
     application.add_handler(CommandHandler('togli', togli_command))
     application.add_handler(CommandHandler('conto_giorno', conto_giorno_command))
+    application.add_handler(CommandHandler('costipazione', costipazione_command))
 
     # Messages
     application.add_handler(MessageHandler(filters.TEXT, handle_message))

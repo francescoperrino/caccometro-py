@@ -216,3 +216,28 @@ def get_record(username, chat_id):
     conn.close()
 
     return rows
+
+# Function to get constipation days for the specific user
+def get_constipation_days(username, chat_id):
+    """Get the constipation days for the specific user."""
+    # Connect to the database
+    conn = sqlite3.connect(os.path.join(DB_FOLDER, f'{chat_id}_bot_data.db'))
+    c = conn.cursor()
+
+    # Execute SQL query to get the constipation days for the specific user
+    c.execute('''SELECT date
+                 FROM user_count
+                 WHERE username = ? AND count > 0
+                 ORDER BY date DESC
+                 LIMIT 1''', (username,))
+    
+    last_day = c.fetchone()
+    conn.close()
+    
+    if last_day:
+        last_day = datetime.strptime(last_day[0], "%Y-%m-%d").date()
+        today = datetime.today().date()
+        
+        return (today - last_day).days
+    
+    return None
