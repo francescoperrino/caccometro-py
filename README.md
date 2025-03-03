@@ -50,7 +50,7 @@ Prima di poter avviare il bot, è necessario crearne uno nuovo su Telegram e con
      record - Record dell'utente (@username).
      aggiungi - Aggiunge 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).
      togli - Sottrae 1 all'utente nel giorno specificato (@username [DD-MM-YYYY]).
-     conto_giorno - Conteggio per il giorno (corrente o specifico [DD-DD-YYYY]).
+     conto_giorno - Conteggio per il giorno (@username [DD-MM-YYYY]).
      costipazione - Conteggio giorni di costipazione (@username).
      ```
 

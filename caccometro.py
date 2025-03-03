@@ -70,7 +70,7 @@ async def classifica_mese_command(update: Update, context: ContextTypes.DEFAULT_
     with open(os.path.join(CHARTS_FOLDER, f'{update.message.chat_id}_{saving_date}.png'), 'rb') as chart:
         await update.message.reply_photo(chart)
 
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, parse_mode='Markdown')
 
 async def classifica_anno_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /classifica_anno command."""
@@ -126,13 +126,13 @@ async def statistiche_mese_command(update: Update, context: ContextTypes.DEFAULT
     message = f"*Statistiche per il mese {date}*:\n"
     for i, stats in enumerate(statistics, start=1):
             if i == 1:
-                message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
             elif i == 2:
-                message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
             elif i == 3:
-                message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
             else:
-                message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+                message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message, parse_mode='Markdown')
 
@@ -153,13 +153,13 @@ async def statistiche_anno_command(update: Update, context: ContextTypes.DEFAULT
     message = f"*Statistiche per l\'anno {year}*:\n"
     for i, stats in enumerate(statistics, start=1):
         if i == 1:
-            message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥇 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
         elif i == 2:
-            message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥈 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
         elif i == 3:
-            message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"🥉 *@{stats['username']}*: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
         else:
-            message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.2f}, Var.: {stats['variance']:.2f}\n"
+            message += f"{i}. @{stats['username']}: Media: {stats['mean']:.2f}, Mediana: {stats['median']:.1f}, Var.: {stats['variance']:.2f}\n"
 
     await update.message.reply_text(message, parse_mode='Markdown')
 
@@ -195,22 +195,39 @@ async def record_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def aggiungi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /aggiungi command."""
     args = context.args
-    if len(args) != 2 or not args[0].startswith('@'):
+    
+    if len(args) != 1 and len(args) != 2:
         await update.message.reply_text("Formato non valido. Usa: /aggiungi @username DD-MM-YYYY")
         return
-
-    username = args[0][1:]
-    date = args[1]
-
-    try:
-        parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
-        selected_date = parsed_date.strftime(STORING_FORMAT)
-        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
-        if selected_date > today:
-            raise ValueError("La data selezionata è nel futuro.")
-    except ValueError as e:
-        await update.message.reply_text(f"Errore: {str(e)}")
-        return
+    
+    if len(args) == 1:
+        try:
+            username = update.message.from_user.username
+            date = args[0]
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+            if selected_date > today:
+                raise ValueError("La data selezionata è nel futuro.")
+        except ValueError as e:
+            await update.message.reply_text(f"Errore: {str(e)}")
+            return
+    
+    if len(args) == 2:
+        if not args[0].startswith('@'):
+            await update.message.reply_text("Formato non valido. Usa: /aggiungi @username DD-MM-YYYY")
+            return
+        try:
+            username = args[0][1:]
+            date = args[1]
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+            if selected_date > today:
+                raise ValueError("La data selezionata è nel futuro.")
+        except ValueError as e:
+            await update.message.reply_text(f"Errore: {str(e)}")
+            return
 
     count = get_count(username, selected_date, update.message.chat_id)
     update_count(username, selected_date, count + 1, update.message.chat_id)
@@ -220,22 +237,39 @@ async def aggiungi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def togli_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /togli command."""
     args = context.args
-    if len(args) != 2 or not args[0].startswith('@'):
+    
+    if len(args) != 1 and len(args) != 2:
         await update.message.reply_text("Formato non valido. Usa: /togli @username DD-MM-YYYY")
         return
-
-    username = args[0][1:]
-    date = args[1]
-
-    try:
-        parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
-        selected_date = parsed_date.strftime(STORING_FORMAT)
-        today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
-        if selected_date > today:
-            raise ValueError("La data selezionata è nel futuro.")
-    except ValueError as e:
-        await update.message.reply_text(f"Errore: {str(e)}")
-        return
+    
+    if len(args) == 1:
+        try:
+            username = update.message.from_user.username
+            date = args[0]
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+            if selected_date > today:
+                raise ValueError("La data selezionata è nel futuro.")
+        except ValueError as e:
+            await update.message.reply_text(f"Errore: {str(e)}")
+            return
+    
+    if len(args) == 2:
+        if not args[0].startswith('@'):
+            await update.message.reply_text("Formato non valido. Usa: /togli @username DD-MM-YYYY")
+            return
+        try:
+            username = args[0][1:]
+            date = args[1]
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+            if selected_date > today:
+                raise ValueError("La data selezionata è nel futuro.")
+        except ValueError as e:
+            await update.message.reply_text(f"Errore: {str(e)}")
+            return
 
     count = get_count(username, selected_date, update.message.chat_id)
     if count > 0:
@@ -249,22 +283,58 @@ async def togli_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def conto_giorno_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /conto_giorno command."""
     args = context.args
-    if args:
-        try:
-            date = datetime.strptime(args[0], DISPLAY_FORMAT).strftime(STORING_FORMAT)
-        except ValueError:
-            await update.message.reply_text("Formato data non valido. Usa DD-MM-YYYY.")
+    
+    if len(args) != 0 and len(args) != 1 and len(args) != 2:
+        await update.message.reply_text("Formato non valido. Usa: /conta_giorno @username DD-MM-YYYY")
+        return
+    
+    if len(args) == 0:
+        username = update.message.from_user.username
+        date = datetime.now(pytz.timezone('Europe/Rome')).strftime(DISPLAY_FORMAT)
+        parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+        selected_date = parsed_date.strftime(STORING_FORMAT)
+    
+    if len(args) == 1:
+        if args[0].startswith('@'):
+            username = args[0][1:]
+            date = datetime.now(pytz.timezone('Europe/Rome')).strftime(DISPLAY_FORMAT)
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+        else:
+            try:
+                username = update.message.from_user.username
+                date = args[0]
+                parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+                selected_date = parsed_date.strftime(STORING_FORMAT)
+                today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+                if selected_date > today:
+                    raise ValueError("La data selezionata è nel futuro.")
+            except ValueError as e:
+                await update.message.reply_text(f"Errore: {str(e)}")
+                return
+    
+    if len(args) == 2:
+        if not args[0].startswith('@'):
+            await update.message.reply_text("Formato non valido. Usa: /conta_giorno @username DD-MM-YYYY")
             return
-    else:
-        date = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+        try:
+            username = args[0][1:]
+            date = args[1]
+            parsed_date = datetime.strptime(date, DISPLAY_FORMAT)
+            selected_date = parsed_date.strftime(STORING_FORMAT)
+            today = datetime.now(pytz.timezone('Europe/Rome')).strftime(STORING_FORMAT)
+            if selected_date > today:
+                raise ValueError("La data selezionata è nel futuro.")
+        except ValueError as e:
+            await update.message.reply_text(f"Errore: {str(e)}")
+            return
 
-    username = update.message.from_user.username
-    count = get_count(username, date, update.message.chat_id)
+    count = get_count(username, selected_date, update.message.chat_id)
     
     if count != 0:
-        await update.message.reply_text(f"@{username} il giorno {args[0] if args else 'oggi'} hai fatto 💩 {count} {'volte' if count > 1 else 'volta'}.")
+        await update.message.reply_text(f"@{username} il giorno {date if args else 'oggi'} hai fatto 💩 {count} {'volte' if count > 1 else 'volta'}.")
     else:
-        await update.message.reply_text(f"@{username} il {args[0] if args else 'oggi'} non hai fatto 💩.")
+        await update.message.reply_text(f"@{username} il {date if args else 'oggi'} non hai fatto 💩.")
 
 async def costipazione_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for the /costipazione command."""
@@ -280,7 +350,7 @@ async def costipazione_command(update: Update, context: ContextTypes.DEFAULT_TYP
         if constipation_days == 0:
             await update.message.reply_text(f"@{username} oggi hai fatto 💩.")
         else:
-            await update.message.reply_text(f"@{username} il non fai 💩 da {constipation_days} {'giorni' if constipation_days > 1 else 'giorno'}.")
+            await update.message.reply_text(f"@{username} non fai 💩 da {constipation_days} {'giorni' if constipation_days > 1 else 'giorno'}.")
     else:
         await update.message.reply_text(f"@{username} non ci sono dati sulla costipazione.")
 

@@ -174,16 +174,16 @@ def get_statistics(chat_id, time_period, date):
         if len(counts) > 1:
             if time_period == 'month' and year == current_year and month == current_month:
                 mean = round(sum(counts) / current_days, 2)
-                median = round(np.median(counts), 2)
+                median = round(np.median(counts), 1)
                 variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
             elif time_period == 'year' and year == current_year:
                 mean = round(sum(counts) / current_days, 2)
-                median = round(np.median(counts), 2)
+                median = round(np.median(counts), 1)
                 variance = round(sum((x - mean) ** 2 for x in counts) / current_days, 2)
             else:
                 mean = round(sum(counts) / days, 2)
-                median = round(np.median(counts), 2)
-                variance = round(sum((x - mean) ** 2 for x in counts) / days, 2) # ddof=1 for sample variance
+                median = round(np.median(counts), 1)
+                variance = round(sum((x - mean) ** 2 for x in counts) / days, 2)
         else:
             median = mean = variance = 0  # If there's not enough data, set default values
 
